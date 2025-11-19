@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { DashboardLayout } from '@/components/dashboard-layout';
 import { useBookings } from '@/hooks/useBookings';
 import { apiClient } from '@/lib/api-client';
+import { CheckCircle, XCircle, Clock, MessageSquare } from 'lucide-react';
 
 export default function TutorBookingsPage() {
   const { bookings, isLoading, mutate } = useBookings();
@@ -57,49 +58,69 @@ export default function TutorBookingsPage() {
   return (
     <DashboardLayout requiredRole={['TUTOR']}>
       <div className="p-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">Manage Bookings</h1>
+        <div className="mb-8 animate-fade-in">
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-400 via-pink-400 to-purple-400 bg-clip-text text-transparent mb-2">
+            Manage Bookings
+          </h1>
+          <p className="text-slate-400">Review and manage your student bookings</p>
+        </div>
 
         {isLoading ? (
           <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500" />
           </div>
         ) : (
           <div className="space-y-8">
             {/* Pending Bookings */}
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Pending Requests ({groupedBookings.PENDING.length})</h2>
+            <div className="animate-fade-in">
+              <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
+                <Clock className="w-6 h-6 text-yellow-400" />
+                Pending Requests ({groupedBookings.PENDING.length})
+              </h2>
               {groupedBookings.PENDING.length > 0 ? (
                 <div className="space-y-4">
-                  {groupedBookings.PENDING.map((booking) => (
-                    <div key={booking.id} className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+                  {groupedBookings.PENDING.map((booking, idx) => (
+                    <div
+                      key={booking.id}
+                      className="group bg-gradient-to-br from-yellow-500/10 to-orange-500/10 backdrop-blur-xl rounded-xl p-6 border border-yellow-500/30 hover:border-yellow-500/60 transition duration-300 shadow-lg hover:shadow-yellow-500/10 animate-fade-in"
+                      style={{ animationDelay: `${idx * 50}ms` }}
+                    >
                       <div className="flex items-start justify-between mb-4">
                         <div>
-                          <h3 className="text-lg font-bold text-gray-900 mb-2">
+                          <h3 className="text-lg font-bold text-white mb-2 flex items-center gap-2">
+                            <div className="w-1 h-6 bg-gradient-to-b from-yellow-400 to-orange-400 rounded-full" />
                             {booking.isTrial ? 'Trial Class Request' : 'Class Booking'}
                           </h3>
-                          <p className="text-sm text-gray-600 mb-1">{booking.requestedHoursPerWeek} hours per week</p>
-                          <p className="text-sm text-gray-600">Start: {new Date(booking.startDateExpected).toLocaleDateString()}</p>
+                          <p className="text-sm text-slate-300 mb-1">{booking.requestedHoursPerWeek} hours per week</p>
+                          <p className="text-sm text-slate-400">
+                            Start: {new Date(booking.startDateExpected).toLocaleDateString()}
+                          </p>
                         </div>
-                        <span className="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-sm font-medium">PENDING</span>
+                        <span className="px-3 py-1 bg-yellow-500/30 text-yellow-300 rounded-full text-sm font-medium border border-yellow-500/50">
+                          PENDING
+                        </span>
                       </div>
                       {booking.noteFromStudent && (
-                        <p className="text-sm text-gray-700 mb-4 p-3 bg-white rounded">
-                          Student Note: {booking.noteFromStudent}
-                        </p>
+                        <div className="text-sm text-slate-300 mb-4 p-3 bg-slate-800/50 rounded-lg border border-slate-600/50 flex items-start gap-2">
+                          <MessageSquare className="w-4 h-4 mt-0.5 flex-shrink-0 text-purple-400" />
+                          <span>Student Note: {booking.noteFromStudent}</span>
+                        </div>
                       )}
                       <div className="flex gap-3">
                         <button
                           onClick={() => handleConfirmBooking(booking.id)}
                           disabled={processingId === booking.id}
-                          className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition disabled:opacity-50"
+                          className="flex-1 px-6 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-lg font-medium transition duration-300 disabled:opacity-50 shadow-lg shadow-green-500/30 hover:shadow-green-500/50 flex items-center justify-center gap-2"
                         >
+                          <CheckCircle className="w-4 h-4" />
                           {processingId === booking.id ? 'Confirming...' : 'Confirm'}
                         </button>
                         <button
                           onClick={() => handleRejectBooking(booking.id)}
                           disabled={processingId === booking.id}
-                          className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition disabled:opacity-50"
+                          className="flex-1 px-6 py-2 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white rounded-lg font-medium transition duration-300 disabled:opacity-50 shadow-lg shadow-red-500/30 hover:shadow-red-500/50 flex items-center justify-center gap-2"
                         >
+                          <XCircle className="w-4 h-4" />
                           {processingId === booking.id ? 'Rejecting...' : 'Reject'}
                         </button>
                       </div>
@@ -107,29 +128,43 @@ export default function TutorBookingsPage() {
                   ))}
                 </div>
               ) : (
-                <p className="text-gray-500 bg-white p-4 rounded-lg">No pending bookings</p>
+                <p className="text-slate-400 bg-slate-800/50 p-4 rounded-lg border border-slate-700/50">No pending bookings</p>
               )}
             </div>
 
             {/* Confirmed Bookings */}
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Confirmed Bookings ({groupedBookings.CONFIRMED.length})</h2>
+            <div className="animate-fade-in">
+              <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
+                <CheckCircle className="w-6 h-6 text-green-400" />
+                Confirmed Bookings ({groupedBookings.CONFIRMED.length})
+              </h2>
               {groupedBookings.CONFIRMED.length > 0 ? (
                 <div className="space-y-4">
-                  {groupedBookings.CONFIRMED.map((booking) => (
-                    <div key={booking.id} className="bg-green-50 border border-green-200 rounded-lg p-6">
+                  {groupedBookings.CONFIRMED.map((booking, idx) => (
+                    <div
+                      key={booking.id}
+                      className="group bg-gradient-to-br from-green-500/10 to-emerald-500/10 backdrop-blur-xl rounded-xl p-6 border border-green-500/30 hover:border-green-500/60 transition duration-300 shadow-lg hover:shadow-green-500/10 animate-fade-in"
+                      style={{ animationDelay: `${idx * 50}ms` }}
+                    >
                       <div className="flex items-start justify-between mb-4">
                         <div>
-                          <h3 className="text-lg font-bold text-gray-900 mb-2">Confirmed Class</h3>
-                          <p className="text-sm text-gray-600 mb-1">{booking.requestedHoursPerWeek} hours per week</p>
-                          <p className="text-sm text-gray-600">Start: {new Date(booking.startDateExpected).toLocaleDateString()}</p>
+                          <h3 className="text-lg font-bold text-white mb-2 flex items-center gap-2">
+                            <div className="w-1 h-6 bg-gradient-to-b from-green-400 to-emerald-400 rounded-full" />
+                            Confirmed Class
+                          </h3>
+                          <p className="text-sm text-slate-300 mb-1">{booking.requestedHoursPerWeek} hours per week</p>
+                          <p className="text-sm text-slate-400">
+                            Start: {new Date(booking.startDateExpected).toLocaleDateString()}
+                          </p>
                         </div>
-                        <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">CONFIRMED</span>
+                        <span className="px-3 py-1 bg-green-500/30 text-green-300 rounded-full text-sm font-medium border border-green-500/50">
+                          CONFIRMED
+                        </span>
                       </div>
                       <button
                         onClick={() => handleCompleteBooking(booking.id)}
                         disabled={processingId === booking.id}
-                        className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition disabled:opacity-50"
+                        className="w-full px-6 py-2 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white rounded-lg font-medium transition duration-300 disabled:opacity-50 shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50"
                       >
                         {processingId === booking.id ? 'Completing...' : 'Mark as Completed'}
                       </button>
@@ -137,24 +172,31 @@ export default function TutorBookingsPage() {
                   ))}
                 </div>
               ) : (
-                <p className="text-gray-500 bg-white p-4 rounded-lg">No confirmed bookings</p>
+                <p className="text-slate-400 bg-slate-800/50 p-4 rounded-lg border border-slate-700/50">No confirmed bookings</p>
               )}
             </div>
 
             {/* Completed Bookings */}
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Completed ({groupedBookings.COMPLETED.length})</h2>
+            <div className="animate-fade-in">
+              <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
+                <CheckCircle className="w-6 h-6 text-slate-400" />
+                Completed ({groupedBookings.COMPLETED.length})
+              </h2>
               {groupedBookings.COMPLETED.length > 0 ? (
                 <div className="space-y-3">
-                  {groupedBookings.COMPLETED.slice(0, 5).map((booking) => (
-                    <div key={booking.id} className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                      <p className="font-medium text-gray-900">Booking {booking.id.slice(0, 8)}</p>
-                      <p className="text-sm text-gray-500">Completed on {new Date(booking.updatedAt).toLocaleDateString()}</p>
+                  {groupedBookings.COMPLETED.slice(0, 5).map((booking, idx) => (
+                    <div
+                      key={booking.id}
+                      className="group bg-gradient-to-br from-slate-800/80 to-slate-900/80 backdrop-blur-xl rounded-xl p-4 border border-slate-600/50 hover:border-slate-500/50 transition duration-300 animate-fade-in"
+                      style={{ animationDelay: `${idx * 50}ms` }}
+                    >
+                      <p className="font-medium text-white">Booking {booking.id.slice(0, 8)}</p>
+                      <p className="text-sm text-slate-400">Completed on {new Date(booking.updatedAt).toLocaleDateString()}</p>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-gray-500 bg-white p-4 rounded-lg">No completed bookings</p>
+                <p className="text-slate-400 bg-slate-800/50 p-4 rounded-lg border border-slate-700/50">No completed bookings</p>
               )}
             </div>
           </div>

@@ -11,9 +11,11 @@ interface DashboardLayoutProps {
 export const DashboardLayout = ({ children, requiredRole }: DashboardLayoutProps) => {
   return (
     <ProtectedRoute requiredRole={requiredRole}>
-      <div className="flex h-screen bg-gray-50">
+      <div className="flex h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
         <SidebarNav />
-        <main className="flex-1 overflow-auto">{children}</main>
+        <main className="flex-1 overflow-auto bg-gradient-to-br from-slate-900 via-purple-900/10 to-slate-900">
+          <div className="backdrop-blur-3xl">{children}</div>
+        </main>
       </div>
     </ProtectedRoute>
   );

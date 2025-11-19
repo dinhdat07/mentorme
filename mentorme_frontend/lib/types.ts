@@ -1,3 +1,7 @@
+/**
+ * TypeScript types matching OpenAPI schema
+ */
+
 export type UserRole = 'STUDENT' | 'TUTOR' | 'ADMIN';
 export type UserStatus = 'ACTIVE' | 'PENDING' | 'SUSPENDED';
 export type ClassStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
