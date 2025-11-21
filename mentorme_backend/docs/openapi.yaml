@@ -1,0 +1,963 @@
+openapi: 3.0.3
+info:
+  title: Mentor Me API
+  description: >
+    Backend API for the Mentor Me tutor–student marketplace MVP.
+  version: 0.1.0
+servers:
+  - url: https://api.example.com
+    description: Production
+  - url: http://localhost:4000
+    description: Local development
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        fullName:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        role:
+          type: string
+          enum: [STUDENT, TUTOR, ADMIN]
+        status:
+          type: string
+          enum: [ACTIVE, PENDING, SUSPENDED]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    StudentProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+        gradeLevel:
+          type: string
+        goals:
+          type: string
+          nullable: true
+        preferredSubjects:
+          type: array
+          items:
+            type: string
+        notes:
+          type: string
+          nullable: true
+    TutorProfile:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        bio:
+          type: string
+          nullable: true
+        education:
+          type: string
+          nullable: true
+        certificates:
+          type: array
+          items:
+            type: string
+        yearsOfExperience:
+          type: integer
+        hourlyRateMin:
+          type: number
+          nullable: true
+        hourlyRateMax:
+          type: number
+          nullable: true
+        teachingModes:
+          type: array
+          items:
+            type: string
+        city:
+          type: string
+          nullable: true
+        district:
+          type: string
+          nullable: true
+        verified:
+          type: boolean
+        trustScore:
+          type: number
+        averageRating:
+          type: number
+        totalCompletedBookings:
+          type: integer
+        totalReviews:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    Subject:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        level:
+          type: string
+        description:
+          type: string
+          nullable: true
+    Class:
+      type: object
+      properties:
+        id:
+          type: string
+        tutorId:
+          type: string
+        subjectId:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        targetGrade:
+          type: string
+          nullable: true
+        pricePerHour:
+          type: number
+        locationType:
+          type: string
+          enum: [ONLINE, AT_STUDENT, AT_TUTOR]
+        city:
+          type: string
+          nullable: true
+        district:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [DRAFT, PUBLISHED, ARCHIVED]
+        isDeleted:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    Booking:
+      type: object
+      properties:
+        id:
+          type: string
+        classId:
+          type: string
+        studentId:
+          type: string
+        tutorId:
+          type: string
+        status:
+          type: string
+          enum: [PENDING, CONFIRMED, TRIAL, CANCELLED, COMPLETED]
+        isTrial:
+          type: boolean
+        requestedHoursPerWeek:
+          type: integer
+        startDateExpected:
+          type: string
+          format: date
+        noteFromStudent:
+          type: string
+          nullable: true
+        cancelReason:
+          type: string
+          nullable: true
+        cancelledBy:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    Review:
+      type: object
+      properties:
+        id:
+          type: string
+        bookingId:
+          type: string
+        studentId:
+          type: string
+        tutorId:
+          type: string
+        rating:
+          type: integer
+        comment:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+paths:
+  /api/auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fullName, email, phone, password, role]
+              properties:
+                fullName:
+                  type: string
+                email:
+                  type: string
+                phone:
+                  type: string
+                password:
+                  type: string
+                role:
+                  type: string
+                  enum: [STUDENT, TUTOR]
+      responses:
+        "201":
+          description: Registered
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: "#/components/schemas/User"
+                  accessToken:
+                    type: string
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: Login with email or phone
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [emailOrPhone, password]
+              properties:
+                emailOrPhone:
+                  type: string
+                password:
+                  type: string
+      responses:
+        "200":
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: "#/components/schemas/User"
+                  accessToken:
+                    type: string
+  /api/auth/me:
+    get:
+      tags: [Auth]
+      summary: Current authenticated user
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Current user info
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: "#/components/schemas/User"
+                  studentProfile:
+                    $ref: "#/components/schemas/StudentProfile"
+                  tutorProfile:
+                    $ref: "#/components/schemas/TutorProfile"
+  /api/students/me:
+    get:
+      tags: [Student]
+      summary: Get current student profile
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Student profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudentProfile"
+    patch:
+      tags: [Student]
+      summary: Update current student profile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                gradeLevel:
+                  type: string
+                goals:
+                  type: string
+                preferredSubjects:
+                  type: array
+                  items:
+                    type: string
+                notes:
+                  type: string
+      responses:
+        "200":
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudentProfile"
+  /api/tutors/me:
+    get:
+      tags: [Tutor]
+      summary: Get current tutor profile
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Tutor profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TutorProfile"
+    patch:
+      tags: [Tutor]
+      summary: Update current tutor profile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                bio:
+                  type: string
+                education:
+                  type: string
+                certificates:
+                  type: array
+                  items:
+                    type: string
+                yearsOfExperience:
+                  type: integer
+                hourlyRateMin:
+                  type: number
+                hourlyRateMax:
+                  type: number
+                teachingModes:
+                  type: array
+                  items:
+                    type: string
+                city:
+                  type: string
+                district:
+                  type: string
+      responses:
+        "200":
+          description: Updated tutor profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TutorProfile"
+  /api/tutors:
+    get:
+      tags: [Tutor]
+      summary: Public tutor listing
+      parameters:
+        - in: query
+          name: subjectId
+          schema:
+            type: string
+        - in: query
+          name: city
+          schema:
+            type: string
+        - in: query
+          name: district
+          schema:
+            type: string
+        - in: query
+          name: priceMin
+          schema:
+            type: number
+        - in: query
+          name: priceMax
+          schema:
+            type: number
+        - in: query
+          name: trustScoreMin
+          schema:
+            type: number
+        - in: query
+          name: page
+          schema:
+            type: integer
+        - in: query
+          name: pageSize
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Paginated tutor list
+  /api/tutors/{id}:
+    get:
+      tags: [Tutor]
+      summary: Get tutor details
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Tutor information
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TutorProfile"
+  /api/subjects:
+    get:
+      tags: [Subject]
+      summary: List subjects
+      responses:
+        "200":
+          description: Subject list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Subject"
+    post:
+      tags: [Subject]
+      summary: Create subject (admin)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, level]
+              properties:
+                name:
+                  type: string
+                level:
+                  type: string
+                description:
+                  type: string
+      responses:
+        "201":
+          description: Created subject
+  /api/classes:
+    post:
+      tags: [Class]
+      summary: Create class listing
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - subjectId
+                - title
+                - description
+                - pricePerHour
+                - locationType
+              properties:
+                subjectId:
+                  type: string
+                title:
+                  type: string
+                description:
+                  type: string
+                targetGrade:
+                  type: string
+                pricePerHour:
+                  type: number
+                locationType:
+                  type: string
+                  enum: [ONLINE, AT_STUDENT, AT_TUTOR]
+                city:
+                  type: string
+                district:
+                  type: string
+      responses:
+        "201":
+          description: Created class
+  /api/classes/{id}:
+    get:
+      tags: [Class]
+      summary: Get class by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Class details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Class"
+    patch:
+      tags: [Class]
+      summary: Update class (tutor owner)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: Updated class
+    delete:
+      tags: [Class]
+      summary: Soft delete class (after archived, no active bookings)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deleted
+  /api/classes/{id}/status:
+    patch:
+      tags: [Class]
+      summary: Update class status
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [DRAFT, PUBLISHED, ARCHIVED]
+      responses:
+        "200":
+          description: Status updated
+  /api/classes/{id}/students:
+    get:
+      tags: [Class]
+      summary: List class students
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Student list
+  /api/bookings:
+    post:
+      tags: [Booking]
+      summary: Create booking request
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - classId
+                - requestedHoursPerWeek
+                - startDateExpected
+              properties:
+                classId:
+                  type: string
+                isTrial:
+                  type: boolean
+                requestedHoursPerWeek:
+                  type: integer
+                startDateExpected:
+                  type: string
+                  format: date
+                noteFromStudent:
+                  type: string
+      responses:
+        "201":
+          description: Booking created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Booking"
+    get:
+      tags: [Booking]
+      summary: List bookings (role-aware)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of bookings
+  /api/bookings/{id}:
+    get:
+      tags: [Booking]
+      summary: Get booking detail (owner or admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Booking detail
+  /api/bookings/{id}/confirm:
+    patch:
+      tags: [Booking]
+      summary: Tutor confirms booking
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Booking confirmed
+  /api/bookings/{id}/reject:
+    patch:
+      tags: [Booking]
+      summary: Tutor rejects booking
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+      responses:
+        "200":
+          description: Booking rejected
+  /api/bookings/{id}/cancel:
+    patch:
+      tags: [Booking]
+      summary: Cancel booking (student/tutor/admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+      responses:
+        "200":
+          description: Booking cancelled
+  /api/bookings/{id}/complete:
+    patch:
+      tags: [Booking]
+      summary: Mark booking completed
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Completed
+  /api/reviews:
+    post:
+      tags: [Review]
+      summary: Create review (student, completed booking)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [bookingId, rating]
+              properties:
+                bookingId:
+                  type: string
+                rating:
+                  type: integer
+                comment:
+                  type: string
+      responses:
+        "201":
+          description: Review created
+  /api/matching/tutors:
+    get:
+      tags: [Matching]
+      summary: Tutor matching results
+      parameters:
+        - in: query
+          name: studentId
+          schema:
+            type: string
+        - in: query
+          name: subjectId
+          schema:
+            type: string
+        - in: query
+          name: city
+          schema:
+            type: string
+        - in: query
+          name: district
+          schema:
+            type: string
+        - in: query
+          name: priceMin
+          schema:
+            type: number
+        - in: query
+          name: priceMax
+          schema:
+            type: number
+      responses:
+        "200":
+          description: List of tutors with matchScore
+  /api/admin/tutors/pending:
+    get:
+      tags: [Admin]
+      summary: List tutors pending verification
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Pending tutors
+  /api/admin/tutors/{id}/verify:
+    patch:
+      tags: [Admin]
+      summary: Verify or reject tutor
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [approved]
+              properties:
+                approved:
+                  type: boolean
+                note:
+                  type: string
+      responses:
+        "200":
+          description: Result message
+  /api/admin/tutors/{id}/ban:
+    patch:
+      tags: [Admin]
+      summary: Ban or unban tutor
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [banned]
+              properties:
+                banned:
+                  type: boolean
+      responses:
+        "200":
+          description: Result message
+  /api/admin/students/{id}/ban:
+    patch:
+      tags: [Admin]
+      summary: Ban or unban student
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [banned]
+              properties:
+                banned:
+                  type: boolean
+      responses:
+        "200":
+          description: Result message
+  /api/admin/bookings:
+    get:
+      tags: [Admin]
+      summary: Admin booking list
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+        - in: query
+          name: tutorId
+          schema:
+            type: string
+        - in: query
+          name: studentId
+          schema:
+            type: string
+        - in: query
+          name: from
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: to
+          schema:
+            type: string
+            format: date-time
+      responses:
+        "200":
+          description: Filtered bookings
+  /api/admin/classes:
+    get:
+      tags: [Admin]
+      summary: Admin class list
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+        - in: query
+          name: tutorId
+          schema:
+            type: string
+        - in: query
+          name: city
+          schema:
+            type: string
+        - in: query
+          name: subjectId
+          schema:
+            type: string
+        - in: query
+          name: includeDeleted
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Filtered classes
