@@ -40,11 +40,16 @@ router.patch("/me", authGuard([UserRole.TUTOR]), async (req, res) => {
     const data: Prisma.TutorProfileUpdateInput = {};
     if (payload.bio !== undefined) data.bio = payload.bio;
     if (payload.education !== undefined) data.education = payload.education;
-    if (payload.certificates !== undefined) data.certificates = payload.certificates;
-    if (payload.yearsOfExperience !== undefined) data.yearsOfExperience = payload.yearsOfExperience;
-    if (payload.hourlyRateMin !== undefined) data.hourlyRateMin = payload.hourlyRateMin;
-    if (payload.hourlyRateMax !== undefined) data.hourlyRateMax = payload.hourlyRateMax;
-    if (payload.teachingModes !== undefined) data.teachingModes = payload.teachingModes;
+    if (payload.certificates !== undefined)
+      data.certificates = payload.certificates;
+    if (payload.yearsOfExperience !== undefined)
+      data.yearsOfExperience = payload.yearsOfExperience;
+    if (payload.hourlyRateMin !== undefined)
+      data.hourlyRateMin = payload.hourlyRateMin;
+    if (payload.hourlyRateMax !== undefined)
+      data.hourlyRateMax = payload.hourlyRateMax;
+    if (payload.teachingModes !== undefined)
+      data.teachingModes = payload.teachingModes;
     if (payload.city !== undefined) data.city = payload.city;
     if (payload.district !== undefined) data.district = payload.district;
 
@@ -55,7 +60,9 @@ router.patch("/me", authGuard([UserRole.TUTOR]), async (req, res) => {
     return res.json(tutor);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ message: "Invalid payload", issues: error.issues });
+      return res
+        .status(400)
+        .json({ message: "Invalid payload", issues: error.issues });
     }
     return res.status(500).json({ message: "Internal server error" });
   }
@@ -98,7 +105,9 @@ router.get("/", async (req, res) => {
       district: req.query.district,
       priceMin: req.query.priceMin ? Number(req.query.priceMin) : undefined,
       priceMax: req.query.priceMax ? Number(req.query.priceMax) : undefined,
-      trustScoreMin: req.query.trustScoreMin ? Number(req.query.trustScoreMin) : undefined,
+      trustScoreMin: req.query.trustScoreMin
+        ? Number(req.query.trustScoreMin)
+        : undefined,
       page: req.query.page ? Number(req.query.page) : undefined,
       pageSize: req.query.pageSize ? Number(req.query.pageSize) : undefined,
     });
@@ -124,12 +133,18 @@ router.get("/", async (req, res) => {
 
     const where: Record<string, unknown> = {
       verified: true,
-      trustScore: query.trustScoreMin ? { gte: query.trustScoreMin } : undefined,
+      trustScore: query.trustScoreMin
+        ? { gte: query.trustScoreMin }
+        : undefined,
       city: query.city,
       district: query.district,
     };
 
-    if (query.subjectId || query.priceMin !== undefined || query.priceMax !== undefined) {
+    if (
+      query.subjectId ||
+      query.priceMin !== undefined ||
+      query.priceMax !== undefined
+    ) {
       where.classes = { some: classFilter };
     }
 
@@ -162,7 +177,9 @@ router.get("/", async (req, res) => {
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ message: "Invalid filters", issues: error.issues });
+      return res
+        .status(400)
+        .json({ message: "Invalid filters", issues: error.issues });
     }
     return res.status(500).json({ message: "Internal server error" });
   }

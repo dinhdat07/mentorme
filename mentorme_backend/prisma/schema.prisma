@@ -87,7 +87,7 @@ model TutorProfile {
   teachingModes            String[]
   city                     String?
   district                 String?
-  verified                 Boolean         @default(false)
+  verified                 Boolean         @default(true)
   trustScore               Float           @default(0)
   averageRating            Float           @default(0)
   totalCompletedBookings   Int             @default(0)

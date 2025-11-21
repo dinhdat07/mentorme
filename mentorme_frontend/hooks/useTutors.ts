@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { apiClient } from '@/lib/api-client';
-import { TutorProfile } from '@/lib/types';
-import useSWR from 'swr';
+import { apiClient } from "@/lib/api-client";
+import { TutorProfile } from "@/lib/types";
+import useSWR from "swr";
 
 export interface TutorFilters {
   subjectId?: string;
@@ -15,27 +15,29 @@ export interface TutorFilters {
   pageSize?: number;
 }
 
-export const useTutors = (filters?: TutorFilters) => {
+export const useTutors = (filters: TutorFilters) => {
+  // tạo key SWR dựa trên filters
   const queryParams = new URLSearchParams();
-  if (filters) {
-    Object.entries(filters).forEach(([key, value]) => {
-      if (value !== undefined) {
-        queryParams.append(key, String(value));
-      }
-    });
-  }
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value !== undefined && value !== "") {
+      queryParams.append(key, String(value));
+    }
+  });
+  const queryString = queryParams.toString();
+  const url = queryString
+    ? `/api/matching/tutors?${queryString}`
+    : `/api/matching/tutors`;
+  console.log("Fetching URL:", url);
 
-  const queryString = queryParams.toString() ? `?${queryParams}` : '';
-  const { data, error, isLoading } = useSWR<any>(
-    `/api/tutors${queryString}`,
-    apiClient.get,
-    { revalidateOnFocus: false }
-  );
-
+  const { data, error, isLoading, mutate } = useSWR<any>(url, apiClient.get, {
+    revalidateOnFocus: false,
+  });
+  console.log(data);
   return {
-    tutors: data?.data || [],
+    tutors: data || [],
     total: data?.total || 0,
     isLoading,
     error,
+    mutate, // nếu muốn trigger fetch thủ công
   };
 };

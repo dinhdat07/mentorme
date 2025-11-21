@@ -1,39 +1,49 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { useAuthContext } from '@/components/auth-provider';
-import { Sparkles, User, Mail, Phone, Lock, ArrowRight } from 'lucide-react';
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { useAuthContext } from "@/components/auth-provider";
+import { Sparkles, User, Mail, Phone, Lock, ArrowRight } from "lucide-react";
 
 export default function RegisterPage() {
   const router = useRouter();
   const { register } = useAuthContext();
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [formData, setFormData] = useState({
-    fullName: '',
-    email: '',
-    phone: '',
-    password: '',
-    role: 'STUDENT' as 'STUDENT' | 'TUTOR',
+    fullName: "",
+    email: "",
+    phone: "",
+    password: "",
+    role: "STUDENT" as "STUDENT" | "TUTOR",
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError("");
     setIsLoading(true);
 
     try {
-      await register(formData.fullName, formData.email, formData.phone, formData.password, formData.role);
-      router.push(`/dashboard/${formData.role === 'TUTOR' ? 'tutor' : 'student'}`);
+      await register(
+        formData.fullName,
+        formData.email,
+        formData.phone,
+        formData.password,
+        formData.role
+      );
+      router.push(
+        `/dashboard/${formData.role === "TUTOR" ? "tutor" : "student"}`
+      );
     } catch (err: any) {
-      setError(err.message || 'Registration failed');
+      setError(err.message || "Registration failed");
     } finally {
       setIsLoading(false);
     }
@@ -47,11 +57,23 @@ export default function RegisterPage() {
       <div className="glass rounded-2xl p-12 w-full max-w-md relative z-10 border border-white/30 shadow-2xl bg-white/20 backdrop-blur-xl animate-fade-in-up">
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 bg-gradient-subtle px-4 py-2 rounded-full mb-4 border border-purple-200">
-            <Sparkles className="w-4 h-4 text-gradient" />
-            <span className="text-sm font-semibold text-gradient">Mentor Me</span>
+            <img
+              src="/logo.png" // đường dẫn tới ảnh trong /public
+              alt="MentorMe Logo"
+              width={24} // chiều rộng logo
+              height={24} // chiều cao logo
+              className="rounded-full"
+            />
+            <span className="text-sm font-semibold text-gradient">
+              Mentor Me
+            </span>
           </div>
-          <h1 className="text-4xl font-bold text-white mb-2">Join Our Community</h1>
-          <p className="text-white/80">Start your learning or teaching journey today</p>
+          <h1 className="text-4xl font-bold text-white mb-2">
+            Join Our Community
+          </h1>
+          <p className="text-white/80">
+            Start your learning or teaching journey today
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -62,7 +84,9 @@ export default function RegisterPage() {
           )}
 
           <div>
-            <label className="block text-sm font-medium text-white mb-2">Full Name</label>
+            <label className="block text-sm font-medium text-white mb-2">
+              Full Name
+            </label>
             <div className="relative group">
               <User className="absolute left-3 top-3 w-5 h-5 text-purple-400/60 group-focus-within:text-purple-300 transition-colors" />
               <input
@@ -78,7 +102,9 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-white mb-2">Email</label>
+            <label className="block text-sm font-medium text-white mb-2">
+              Email
+            </label>
             <div className="relative group">
               <Mail className="absolute left-3 top-3 w-5 h-5 text-purple-400/60 group-focus-within:text-purple-300 transition-colors" />
               <input
@@ -94,7 +120,9 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-white mb-2">Phone</label>
+            <label className="block text-sm font-medium text-white mb-2">
+              Phone
+            </label>
             <div className="relative group">
               <Phone className="absolute left-3 top-3 w-5 h-5 text-purple-400/60 group-focus-within:text-purple-300 transition-colors" />
               <input
@@ -110,7 +138,9 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-white mb-2">Password</label>
+            <label className="block text-sm font-medium text-white mb-2">
+              Password
+            </label>
             <div className="relative group">
               <Lock className="absolute left-3 top-3 w-5 h-5 text-purple-400/60 group-focus-within:text-purple-300 transition-colors" />
               <input
@@ -126,15 +156,21 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-white mb-2">I am a</label>
+            <label className="block text-sm font-medium text-white mb-2">
+              I am a
+            </label>
             <select
               name="role"
               value={formData.role}
               onChange={handleChange}
               className="w-full px-4 py-3 bg-white/15 border border-white/30 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all duration-300"
             >
-              <option value="STUDENT" className="bg-gray-900">Student / Parent</option>
-              <option value="TUTOR" className="bg-gray-900">Tutor / Teacher</option>
+              <option value="STUDENT" className="bg-gray-900">
+                Student / Parent
+              </option>
+              <option value="TUTOR" className="bg-gray-900">
+                Tutor / Teacher
+              </option>
             </select>
           </div>
 
@@ -143,7 +179,9 @@ export default function RegisterPage() {
             disabled={isLoading}
             className="w-full btn-gradient text-white font-semibold py-3 px-4 rounded-lg transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isLoading ? 'Creating account...' : (
+            {isLoading ? (
+              "Creating account..."
+            ) : (
               <>
                 Create Account <ArrowRight className="w-4 h-4" />
               </>
@@ -152,8 +190,11 @@ export default function RegisterPage() {
         </form>
 
         <p className="text-center text-white/80 mt-8">
-          Already have an account?{' '}
-          <Link href="/login" className="text-purple-200 hover:text-purple-100 font-semibold transition-colors">
+          Already have an account?{" "}
+          <Link
+            href="/login"
+            className="text-purple-200 hover:text-purple-100 font-semibold transition-colors"
+          >
             Login here
           </Link>
         </p>
