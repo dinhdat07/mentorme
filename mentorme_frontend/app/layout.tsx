@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { AuthProvider } from '@/components/auth-provider';
 import './globals.css';
+import { UISettingsProvider } from '@/components/ui-settings-context';
 
 import { Geist as V0_Font_Geist, Geist_Mono as V0_Font_Geist_Mono, Source_Serif_4 as V0_Font_Source_Serif_4 } from 'next/font/google'
 
@@ -22,8 +23,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="font-sans bg-gray-50 text-gray-900">
-        <AuthProvider>{children}</AuthProvider>
+      <body className="font-sans">
+        <AuthProvider>
+          <UISettingsProvider>{children}</UISettingsProvider>
+        </AuthProvider>
       </body>
     </html>
   );
