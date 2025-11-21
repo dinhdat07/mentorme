@@ -1,9 +1,16 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { useRouter, usePathname } from 'next/navigation';
-import { useAuthContext } from './auth-provider';
-import { LogOut, LayoutDashboard, Users, BookOpen, Star, Settings } from 'lucide-react';
+import Link from "next/link";
+import { useRouter, usePathname } from "next/navigation";
+import { useAuthContext } from "./auth-provider";
+import {
+  LogOut,
+  LayoutDashboard,
+  Users,
+  BookOpen,
+  Star,
+  Settings,
+} from "lucide-react";
 
 export const SidebarNav = () => {
   const router = useRouter();
@@ -13,28 +20,44 @@ export const SidebarNav = () => {
   const getNavItems = () => {
     if (!user) return [];
 
-    if (user.role === 'STUDENT') {
+    if (user.role === "STUDENT") {
       return [
-        { label: 'Dashboard', href: '/dashboard/student', icon: LayoutDashboard },
-        { label: 'Find Tutors', href: '/tutors', icon: Users },
-        { label: 'My Bookings', href: '/dashboard/student/bookings', icon: BookOpen },
-        { label: 'Profile', href: '/dashboard/student/profile', icon: Settings },
+        {
+          label: "Dashboard",
+          href: "/dashboard/student",
+          icon: LayoutDashboard,
+        },
+        { label: "Find Tutors", href: "/tutors", icon: Users },
+        {
+          label: "My Bookings",
+          href: "/dashboard/student/bookings",
+          icon: BookOpen,
+        },
+        {
+          label: "Profile",
+          href: "/dashboard/student/profile",
+          icon: Settings,
+        },
       ];
     }
 
-    if (user.role === 'TUTOR') {
+    if (user.role === "TUTOR") {
       return [
-        { label: 'Dashboard', href: '/dashboard/tutor', icon: LayoutDashboard },
-        { label: 'My Classes', href: '/dashboard/tutor/classes', icon: BookOpen },
-        { label: 'Bookings', href: '/dashboard/tutor/bookings', icon: Users },
-        { label: 'Profile', href: '/dashboard/tutor/profile', icon: Settings },
-        { label: 'Reviews', href: '/dashboard/tutor/reviews', icon: Star },
+        { label: "Dashboard", href: "/dashboard/tutor", icon: LayoutDashboard },
+        {
+          label: "My Classes",
+          href: "/dashboard/tutor/classes",
+          icon: BookOpen,
+        },
+        { label: "Bookings", href: "/dashboard/tutor/bookings", icon: Users },
+        { label: "Profile", href: "/dashboard/tutor/profile", icon: Settings },
+        { label: "Reviews", href: "/dashboard/tutor/reviews", icon: Star },
       ];
     }
 
-    if (user.role === 'ADMIN') {
+    if (user.role === "ADMIN") {
       return [
-        { label: 'Dashboard', href: '/dashboard/admin', icon: LayoutDashboard },
+        { label: "Dashboard", href: "/dashboard/admin", icon: LayoutDashboard },
       ];
     }
 
@@ -43,15 +66,21 @@ export const SidebarNav = () => {
 
   const handleLogout = () => {
     logout();
-    router.push('/login');
+    router.push("/login");
   };
 
   return (
     <div className="w-64 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 h-screen flex flex-col border-r border-slate-700/50 shadow-2xl">
       <div className="p-6 border-b border-slate-700/50">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
-            <span className="text-white font-bold text-sm">MM</span>
+          <div className="w-8 h-8 bg-gradient-to-br from-purple-500 rounded-lg flex items-center justify-center">
+            <img
+              src="/logo.png"
+              alt="MentorMe Logo"
+              width={40}
+              height={40}
+              className="rounded-full"
+            />
           </div>
           <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
             Mentor Me
@@ -69,13 +98,15 @@ export const SidebarNav = () => {
               href={item.href}
               className={`flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition duration-300 group ${
                 isActive
-                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/30'
-                  : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
+                  ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/30"
+                  : "text-slate-300 hover:bg-slate-700/50 hover:text-white"
               }`}
             >
               <Icon className="w-5 h-5" />
               <span>{item.label}</span>
-              {isActive && <div className="ml-auto w-1 h-6 bg-white rounded-full" />}
+              {isActive && (
+                <div className="ml-auto w-1 h-6 bg-white rounded-full" />
+              )}
             </Link>
           );
         })}
