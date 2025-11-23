@@ -8,9 +8,10 @@ import { Sparkles, Mail, Lock, ArrowRight } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, user } = useAuthContext();
+  const { login } = useAuthContext();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [googleRole, setGoogleRole] = useState<'STUDENT' | 'TUTOR'>('STUDENT');
   const [formData, setFormData] = useState({
     emailOrPhone: '',
     password: '',
@@ -35,6 +36,12 @@ export default function LoginPage() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleGoogleSignIn = () => {
+    const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000';
+    const url = `${apiBase}/api/auth/google?role=${googleRole}`;
+    window.location.href = url;
   };
 
   return (
@@ -103,6 +110,33 @@ export default function LoginPage() {
             )}
           </button>
         </form>
+
+        <div className="flex items-center gap-2 text-white/70 my-6">
+          <div className="flex-1 h-px bg-white/30" />
+          <span className="text-sm">or</span>
+          <div className="flex-1 h-px bg-white/30" />
+        </div>
+
+        <div className="space-y-3">
+          <label className="block text-sm font-medium text-white mb-2">Continue as</label>
+          <select
+            value={googleRole}
+            onChange={(e) => setGoogleRole(e.target.value as 'STUDENT' | 'TUTOR')}
+            className="w-full px-4 py-3 bg-white/15 border border-white/30 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all duration-300"
+          >
+            <option value="STUDENT" className="bg-gray-900">Student / Parent</option>
+            <option value="TUTOR" className="bg-gray-900">Tutor / Teacher</option>
+          </select>
+
+          <button
+            type="button"
+            onClick={handleGoogleSignIn}
+            className="w-full bg-white text-gray-900 font-semibold py-3 px-4 rounded-lg transition flex items-center justify-center gap-2 hover:bg-purple-50 border border-white/60"
+          >
+            <Mail className="w-5 h-5 text-red-500" />
+            Continue with Google
+          </button>
+        </div>
 
         <p className="text-center text-white/80 mt-8">
           Don't have an account?{' '}

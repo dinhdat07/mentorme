@@ -11,6 +11,7 @@ type PrismaMock = {
   review: ModelMock;
   subject: ModelMock;
   $transaction: jest.Mock;
+  prisma?: never;
 };
 
 const createModelMock = () => ({
@@ -21,6 +22,8 @@ const createModelMock = () => ({
   update: jest.fn(),
   count: jest.fn(),
   updateMany: jest.fn(),
+  upsert: jest.fn(),
+  aggregate: jest.fn(),
 });
 
 export const mockPrisma: PrismaMock = {

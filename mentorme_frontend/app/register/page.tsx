@@ -39,6 +39,12 @@ export default function RegisterPage() {
     }
   };
 
+  const handleGoogleSignIn = () => {
+    const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000';
+    const url = `${apiBase}/api/auth/google?role=${formData.role}`;
+    window.location.href = url;
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-hero relative overflow-hidden py-8">
       <div className="absolute inset-0 bg-gradient-premium opacity-10 blur-3xl rounded-full w-96 h-96 -top-40 -right-40"></div>
@@ -150,6 +156,21 @@ export default function RegisterPage() {
             )}
           </button>
         </form>
+
+        <div className="flex items-center gap-2 text-white/70 my-6">
+          <div className="flex-1 h-px bg-white/30" />
+          <span className="text-sm">or</span>
+          <div className="flex-1 h-px bg-white/30" />
+        </div>
+
+        <button
+          type="button"
+          onClick={handleGoogleSignIn}
+          className="w-full bg-white text-gray-900 font-semibold py-3 px-4 rounded-lg transition flex items-center justify-center gap-2 hover:bg-purple-50 border border-white/60"
+        >
+          <Mail className="w-5 h-5 text-red-500" />
+          Continue with Google
+        </button>
 
         <p className="text-center text-white/80 mt-8">
           Already have an account?{' '}

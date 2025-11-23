@@ -22,9 +22,15 @@ Create a `.env` file in `mentorme_backend/`:
 DATABASE_URL="postgresql://USER:PASSWORD@HOST:PORT/mentorme"
 JWT_SECRET="replace-with-long-random-string"
 PORT=4000
+GOOGLE_CLIENT_ID="your-google-client-id"
+GOOGLE_CLIENT_SECRET="your-google-client-secret"
+GOOGLE_REDIRECT_URI="http://localhost:4000/api/auth/google/callback"
+FRONTEND_URL="http://localhost:3000"
 ```
 
-`DATABASE_URL` and `JWT_SECRET` are required. `PORT` defaults to `4000` when omitted.
+`DATABASE_URL`, `JWT_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`, and `FRONTEND_URL` are required. `PORT` defaults to `4000` when omitted.
+
+Google OAuth: the backend initiates the flow at `/api/auth/google?role=STUDENT|TUTOR` and completes it at `/api/auth/google/callback`, then redirects back to `${FRONTEND_URL}/auth/google-callback` with a JWT token.
 
 ## Getting Started
 

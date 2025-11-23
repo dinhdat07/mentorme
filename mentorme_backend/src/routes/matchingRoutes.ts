@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { prisma } from "../lib/prisma";
 import { z } from "zod";
-import { ClassStatus, Prisma } from "@prisma/client";
+import { ClassStatus, Prisma, UserStatus } from "@prisma/client";
 
 const router = Router();
 
@@ -46,6 +46,7 @@ router.get("/tutors", async (req, res) => {
 
     const where: Prisma.TutorProfileWhereInput = {
       verified: true,
+      user: { status: UserStatus.ACTIVE },
     };
     if (effectiveCity) {
       where.city = effectiveCity;
@@ -57,7 +58,8 @@ router.get("/tutors", async (req, res) => {
     const shouldFilterClasses =
       effectiveSubjectId !== undefined ||
       query.priceMin !== undefined ||
-      query.priceMax !== undefined;
+      query.priceMax !== undefined ||
+      query.gradeLevel !== undefined;
 
     const classFilter: Prisma.ClassWhereInput = {
       status: ClassStatus.PUBLISHED,
@@ -74,6 +76,12 @@ router.get("/tutors", async (req, res) => {
       if (query.priceMax !== undefined) {
         classFilter.pricePerHour.lte = query.priceMax;
       }
+    }
+    if (query.gradeLevel) {
+      classFilter.targetGrade = {
+        contains: query.gradeLevel,
+        mode: "insensitive",
+      };
     }
 
     if (shouldFilterClasses) {
@@ -96,6 +104,12 @@ router.get("/tutors", async (req, res) => {
         includeClassesFilter.pricePerHour.lte = query.priceMax;
       }
     }
+    if (query.gradeLevel) {
+      includeClassesFilter.targetGrade = {
+        contains: query.gradeLevel,
+        mode: "insensitive",
+      };
+    }
 
     const tutors = await prisma.tutorProfile.findMany({
       where,
@@ -104,20 +118,49 @@ router.get("/tutors", async (req, res) => {
           where: includeClassesFilter,
         },
       },
-      orderBy: [
-        { trustScore: "desc" },
-        { averageRating: "desc" },
-      ],
+      orderBy: [{ trustScore: "desc" }],
       take: 20,
     });
 
-    const results = tutors.map((tutor) => {
-      const matchScore =
-        tutor.trustScore * 0.6 +
-        tutor.averageRating * 8 +
-        (tutor.totalCompletedBookings ?? 0);
-      return { tutor, matchScore };
-    });
+    const results = tutors
+      .map((tutor) => {
+        const subjectMatch = effectiveSubjectId
+          ? tutor.classes.some((cls) => cls.subjectId === effectiveSubjectId)
+          : false;
+        const gradeMatch = query.gradeLevel
+          ? tutor.classes.some((cls) => (cls.targetGrade ?? "").toLowerCase().includes(query.gradeLevel!.toLowerCase()))
+          : false;
+
+        let pricePenalty = 0;
+        if (query.priceMin !== undefined || query.priceMax !== undefined) {
+          const priceRange = [
+            query.priceMin ?? Number.NEGATIVE_INFINITY,
+            query.priceMax ?? Number.POSITIVE_INFINITY,
+          ];
+          const closestPrice = tutor.classes.reduce<number | null>((acc, cls) => {
+            if (cls.pricePerHour === undefined || cls.pricePerHour === null) return acc;
+            if (acc === null) return cls.pricePerHour;
+            return Math.abs(cls.pricePerHour - priceRange[0]) < Math.abs(acc - priceRange[0])
+              ? cls.pricePerHour
+              : acc;
+          }, null);
+          if (closestPrice !== null) {
+            if (closestPrice < priceRange[0]) pricePenalty += priceRange[0] - closestPrice;
+            if (closestPrice > priceRange[1]) pricePenalty += closestPrice - priceRange[1];
+          }
+        }
+
+        const matchScore =
+          tutor.trustScore * 0.5 +
+          tutor.averageRating * 10 +
+          (tutor.totalCompletedBookings ?? 0) * 2 +
+          (subjectMatch ? 6 : 0) +
+          (gradeMatch ? 4 : 0) -
+          pricePenalty;
+
+        return { tutor, matchScore };
+      })
+      .sort((a, b) => b.matchScore - a.matchScore);
 
     return res.json(results);
   } catch (error) {

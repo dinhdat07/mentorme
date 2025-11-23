@@ -12,7 +12,7 @@ export interface User {
   id: string;
   fullName: string;
   email: string;
-  phone: string;
+  phone: string | null;
   role: UserRole;
   status: UserStatus;
   createdAt: string;

@@ -19,7 +19,10 @@ export const recalculateTutorStats = async (tutorId: string) => {
 
   const trustScore = Math.min(
     100,
-    40 + totalCompletedBookings * 3 + averageRating * 8
+    10 +
+      totalCompletedBookings * 2.5 + // reward delivered lessons
+      averageRating * 12 + // strong weight for quality
+      Math.min(totalReviews, 20) * 1.5 // slight boost for volume (capped)
   );
 
   await prisma.tutorProfile.update({
