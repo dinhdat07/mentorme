@@ -21,17 +21,30 @@ export const useAuth = () => {
     isAuthenticated: false,
   });
 
-  // Load auth from localStorage on mount
+  // Load auth from localStorage on mount and whenever token changes
   useEffect(() => {
+    let cancelled = false;
+
     const loadAuth = async () => {
+      if (cancelled) return;
       const token = getToken();
+
       if (!token) {
-        setState((prev) => ({ ...prev, isLoading: false }));
+        setState({
+          user: null,
+          studentProfile: null,
+          tutorProfile: null,
+          isLoading: false,
+          isAuthenticated: false,
+        });
         return;
       }
 
+      setState((prev) => ({ ...prev, isLoading: true }));
+
       try {
         const response = await apiClient.get<AuthResponse>('/api/auth/me');
+        if (cancelled) return;
         setState({
           user: response.user,
           studentProfile: response.studentProfile || null,
@@ -40,12 +53,34 @@ export const useAuth = () => {
           isAuthenticated: true,
         });
       } catch (error) {
+        if (cancelled) return;
         clearToken();
-        setState((prev) => ({ ...prev, isLoading: false, isAuthenticated: false }));
+        setState({
+          user: null,
+          studentProfile: null,
+          tutorProfile: null,
+          isLoading: false,
+          isAuthenticated: false,
+        });
       }
     };
 
     loadAuth();
+
+    const handleTokenChange = () => {
+      loadAuth();
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('accessToken-changed', handleTokenChange);
+    }
+
+    return () => {
+      cancelled = true;
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('accessToken-changed', handleTokenChange);
+      }
+    };
   }, []);
 
   const register = useCallback(

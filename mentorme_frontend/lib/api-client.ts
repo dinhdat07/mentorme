@@ -19,6 +19,8 @@ const getToken = (): string | null => {
 const setToken = (token: string) => {
   if (typeof window !== 'undefined') {
     localStorage.setItem('accessToken', token);
+    // Notify listeners (same tab) that auth token changed
+    window.dispatchEvent(new Event('accessToken-changed'));
   }
 };
 
@@ -26,6 +28,7 @@ const clearToken = () => {
   if (typeof window !== 'undefined') {
     localStorage.removeItem('accessToken');
     localStorage.removeItem('user');
+    window.dispatchEvent(new Event('accessToken-changed'));
   }
 };
 
