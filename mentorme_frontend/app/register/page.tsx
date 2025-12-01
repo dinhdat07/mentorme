@@ -3,8 +3,9 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useAuthContext } from '@/components/auth-provider';
-import { Sparkles, User, Mail, Phone, Lock, ArrowRight } from 'lucide-react';
+import { User, Mail, Phone, Lock, ArrowRight } from 'lucide-react';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -18,6 +19,7 @@ export default function RegisterPage() {
     password: '',
     role: 'STUDENT' as 'STUDENT' | 'TUTOR',
   });
+  const googleAuthEnabled = (process.env.NEXT_PUBLIC_USE_GOOGLE_AUTH ?? 'true').toLowerCase() === 'true';
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -52,9 +54,11 @@ export default function RegisterPage() {
 
       <div className="glass rounded-2xl p-12 w-full max-w-md relative z-10 border border-white/30 shadow-2xl bg-white/20 backdrop-blur-xl animate-fade-in-up">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-2 bg-gradient-subtle px-4 py-2 rounded-full mb-4 border border-purple-200">
-            <Sparkles className="w-4 h-4 text-gradient" />
-            <span className="text-sm font-semibold text-gradient">Mentor Me</span>
+          <div className="inline-flex items-center justify-center bg-white/10 px-4 py-2 rounded-full mb-4 border border-white/30">
+            <Image src="/mentorme_logo.png" alt="MentorMe logo" width={48} height={48} className="mr-2 rounded-full" />
+            <span className="text-sm font-semibold text-gradient flex items-center gap-1">
+              Mentor Me
+            </span>
           </div>
           <h1 className="text-4xl font-bold text-white mb-2">Join Our Community</h1>
           <p className="text-white/80">Start your learning or teaching journey today</p>
@@ -157,20 +161,24 @@ export default function RegisterPage() {
           </button>
         </form>
 
-        <div className="flex items-center gap-2 text-white/70 my-6">
-          <div className="flex-1 h-px bg-white/30" />
-          <span className="text-sm">or</span>
-          <div className="flex-1 h-px bg-white/30" />
-        </div>
+        {googleAuthEnabled && (
+          <>
+            <div className="flex items-center gap-2 text-white/70 my-6">
+              <div className="flex-1 h-px bg-white/30" />
+              <span className="text-sm">or</span>
+              <div className="flex-1 h-px bg-white/30" />
+            </div>
 
-        <button
-          type="button"
-          onClick={handleGoogleSignIn}
-          className="w-full bg-white text-gray-900 font-semibold py-3 px-4 rounded-lg transition flex items-center justify-center gap-2 hover:bg-purple-50 border border-white/60"
-        >
-          <Mail className="w-5 h-5 text-red-500" />
-          Continue with Google
-        </button>
+            <button
+              type="button"
+              onClick={handleGoogleSignIn}
+              className="w-full bg-white text-gray-900 font-semibold py-3 px-4 rounded-lg transition flex items-center justify-center gap-2 hover:bg-purple-50 border border-white/60"
+            >
+              <Mail className="w-5 h-5 text-red-500" />
+              Continue with Google
+            </button>
+          </>
+        )}
 
         <p className="text-center text-white/80 mt-8">
           Already have an account?{' '}

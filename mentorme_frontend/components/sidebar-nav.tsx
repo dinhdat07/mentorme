@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuthContext } from './auth-provider';
 import { LogOut, LayoutDashboard, Users, BookOpen, Star, Settings, Sun, Moon } from 'lucide-react';
@@ -91,14 +92,12 @@ export const SidebarNav = ({ theme = 'dark' }: SidebarNavProps) => {
       }`}
     >
       <div className={`p-6 border-b transition-colors duration-300 ${resolvedTheme === 'dark' ? 'border-slate-700/50' : 'border-slate-200'}`}>
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
-            <span className="text-white font-bold text-sm">MM</span>
-          </div>
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+        <Link href="/" className="flex items-center gap-3">
+          <Image src="/mentorme_logo.png" alt="MentorMe logo" width={44} height={44} className="rounded-md" />
+          <h1 className="text-xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
             Mentor Me
           </h1>
-        </div>
+        </Link>
       </div>
 
       <nav className="flex-1 p-4 space-y-2 overflow-y-auto">

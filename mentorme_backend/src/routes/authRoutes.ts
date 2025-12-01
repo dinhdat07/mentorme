@@ -160,7 +160,7 @@ router.get("/google/callback", async (req, res) => {
       return res.status(400).json({ message: "Missing authorization code" });
     }
 
-    let stateRole = UserRole.STUDENT;
+    let stateRole: UserRole = UserRole.STUDENT;
     if (typeof state === "string") {
       try {
         const decoded = JSON.parse(Buffer.from(state, "base64url").toString());
@@ -233,7 +233,11 @@ router.get("/google/callback", async (req, res) => {
 
     return res.redirect(redirectUrl.toString());
   } catch (error) {
-    return res.status(500).json({ message: "Google authentication failed" });
+    // Surface basic debug info to help diagnose OAuth misconfiguration
+    const reason =
+      error instanceof Error && error.message ? error.message : "Unknown error";
+    console.error("[google-oauth] callback failed:", reason);
+    return res.status(500).json({ message: "Google authentication failed", reason });
   }
 });
 

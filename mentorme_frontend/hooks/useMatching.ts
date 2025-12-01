@@ -4,34 +4,40 @@ import { apiClient } from '@/lib/api-client';
 import { TutorProfile } from '@/lib/types';
 import useSWR from 'swr';
 
-export interface MatchingFilters {
-  studentId?: string;
-  subjectId?: string;
-  city?: string;
-  district?: string;
-  priceMin?: number;
-  priceMax?: number;
+export interface MatchingTimeSlot {
+  dayOfWeek: number;
+  startMinute: number;
+  endMinute: number;
 }
 
-export const useMatching = (filters?: MatchingFilters) => {
-  const queryParams = new URLSearchParams();
-  if (filters) {
-    Object.entries(filters).forEach(([key, value]) => {
-      if (value !== undefined) {
-        queryParams.append(key, String(value));
-      }
-    });
-  }
+export interface MatchingRequest {
+  subjectId: string;
+  gradeLevel: string;
+  budgetPerHour: number;
+  desiredSlots: MatchingTimeSlot[];
+  city?: string;
+  district?: string;
+  description?: string;
+  limit?: number;
+}
 
-  const queryString = queryParams.toString() ? `?${queryParams}` : '';
-  const { data, error, isLoading } = useSWR<any>(
-    `/api/matching/tutors${queryString}`,
-    apiClient.get,
+export interface MatchedTutor {
+  tutor: TutorProfile;
+  score: number;
+  reasons: string[];
+}
+
+export const useMatching = (payload?: MatchingRequest) => {
+  const shouldFetch = Boolean(payload && payload.subjectId && payload.desiredSlots?.length);
+
+  const { data, error, isLoading } = useSWR<MatchedTutor[]>(
+    shouldFetch ? ['matching', payload] : null,
+    () => apiClient.post<MatchedTutor[]>('/api/matching/tutors', payload),
     { revalidateOnFocus: false }
   );
 
   return {
-    matches: data?.data || [],
+    matches: data ?? [],
     isLoading,
     error,
   };

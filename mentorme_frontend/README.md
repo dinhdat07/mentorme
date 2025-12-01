@@ -20,6 +20,7 @@ Create `mentorme_frontend/.env.local` with:
 
 ```bash
 NEXT_PUBLIC_API_BASE_URL="http://localhost:4000"
+NEXT_PUBLIC_USE_GOOGLE_AUTH="true" # set to "false" to hide Google auth buttons
 ```
 
 Point the value to wherever the backend is hosted.

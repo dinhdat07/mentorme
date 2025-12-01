@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
-import { Users, BookOpen, Star, CheckCircle, ArrowRight, Sparkles, Target, Shield, Sun, Moon } from 'lucide-react';
+import { Users, BookOpen, Star, CheckCircle, ArrowRight, Target, Shield, Sun, Moon, Sparkles } from 'lucide-react';
 import { useUISettings } from '@/components/ui-settings-context';
 
 type Language = 'vi' | 'en';
@@ -145,8 +146,8 @@ export default function Home() {
       <nav className={`fixed top-0 w-full backdrop-blur-md z-50 transition-all duration-300 ${isDark ? 'bg-slate-900/80 border-b border-slate-800' : 'bg-white/80 border-b border-gray-200'}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <Link href="/" className="text-2xl font-bold text-gradient flex items-center gap-2">
-            <Sparkles className={`w-6 h-6 ${isDark ? 'text-pink-400' : 'text-purple-600'}`} />
-            Mentor Me
+            <Image src="/mentorme_logo.png" alt="MentorMe logo" width={44} height={44} className="rounded-md" />
+            <span className="hidden sm:inline">Mentor Me</span>
           </Link>
           <div className="flex items-center gap-3">
             <div className={`flex items-center gap-1 rounded-full px-2 py-1 text-sm ${isDark ? 'bg-slate-800 border border-slate-700' : 'bg-gray-100 border border-gray-200'}`}>
@@ -214,9 +215,11 @@ export default function Home() {
 
         <div className="max-w-7xl mx-auto text-center relative z-10">
           <div className={`transition-all duration-1000 transform ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-            <div className={`inline-flex items-center gap-2 px-6 py-2 rounded-full mb-6 border animate-fade-in-up ${isDark ? 'bg-white/5 border-white/15 text-slate-100' : 'bg-gradient-subtle border-purple-200'}`}>
-              <Sparkles className={`w-4 h-4 ${isDark ? 'text-pink-300' : 'text-purple-600'}`} />
-              <span className="text-sm font-semibold text-gradient">{t.welcome}</span>
+            <div className={`inline-flex items-center gap-3 px-6 py-2 rounded-full mb-6 border animate-fade-in-up ${isDark ? 'bg-white/5 border-white/15 text-slate-100' : 'bg-gradient-subtle border-purple-200'}`}>
+              <Image src="/mentorme_logo.png" alt="MentorMe logo" width={40} height={40} className="rounded-full" />
+              <span className="text-sm font-semibold text-gradient flex items-center gap-2">
+                {t.welcome}
+              </span>
             </div>
 
             <h1 className={`text-6xl sm:text-7xl font-bold mb-6 leading-tight animate-fade-in-up delay-100 ${isDark ? 'text-white' : 'text-gray-900'}`}>

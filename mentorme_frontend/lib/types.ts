@@ -24,6 +24,8 @@ export interface StudentProfile {
   userId: string;
   gradeLevel: string;
   goals?: string;
+  goalsEmbedding?: number[];
+  goalsEmbeddingModel?: string;
   preferredSubjects: string[];
   notes?: string;
 }
@@ -42,9 +44,29 @@ export interface TutorProfile {
   district?: string;
   verified: boolean;
   trustScore: number;
+  totalBookings: number;
   averageRating: number;
+  totalCancelledBookings: number;
   totalCompletedBookings: number;
+  policyViolationsCount: number;
+  avgResponseTimeSeconds: number;
+  lastTrustScoreUpdatedAt: string;
   totalReviews: number;
+  profileEmbedding?: number[];
+  profileEmbeddingModel?: string;
+  createdAt: string;
+  updatedAt: string;
+  availabilities?: TutorAvailability[];
+  classes?: Class[];
+}
+
+export interface TutorAvailability {
+  id: string;
+  tutorId: string;
+  dayOfWeek: number;
+  startMinute: number;
+  endMinute: number;
+  locationType: LocationType;
   createdAt: string;
   updatedAt: string;
 }

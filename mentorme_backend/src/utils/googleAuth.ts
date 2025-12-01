@@ -43,9 +43,17 @@ export const getGoogleProfile = async (code: string): Promise<GoogleProfile> => 
     throw new Error("Invalid Google profile");
   }
 
+  const googleId: string = payload.sub as string;
+  const email: string = payload.email as string;
+  const fullName: string = (
+    typeof payload.name === "string" && payload.name.length > 0
+      ? payload.name
+      : email.split("@")[0]
+  ) as string;
+
   return {
-    googleId: payload.sub,
-    email: payload.email,
-    fullName: payload.name || payload.email.split("@")[0],
+    googleId,
+    email,
+    fullName,
   };
 };

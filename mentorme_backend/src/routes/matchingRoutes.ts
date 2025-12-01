@@ -1,11 +1,33 @@
 import { Router } from "express";
-import { prisma } from "../lib/prisma";
 import { z } from "zod";
 import { ClassStatus, Prisma, UserStatus } from "@prisma/client";
+import { prisma } from "../lib/prisma";
+import { matchTutors } from "../domain/matchingEngine";
 
 const router = Router();
 
-const filterSchema = z.object({
+const timeSlotSchema = z
+  .object({
+    dayOfWeek: z.coerce.number().int().min(0).max(6),
+    startMinute: z.coerce.number().int().min(0).max(1440),
+    endMinute: z.coerce.number().int().min(0).max(1440),
+  })
+  .refine((slot) => slot.endMinute > slot.startMinute, {
+    message: "endMinute must be greater than startMinute",
+  });
+
+const matchingSchema = z.object({
+  subjectId: z.string().uuid(),
+  gradeLevel: z.string().min(1),
+  city: z.string().optional(),
+  district: z.string().optional(),
+  budgetPerHour: z.coerce.number().positive(),
+  desiredSlots: z.array(timeSlotSchema).nonempty(),
+  description: z.string().optional(),
+  limit: z.coerce.number().int().positive().max(50).optional(),
+});
+
+const legacyFilterSchema = z.object({
   studentId: z.string().uuid().optional(),
   subjectId: z.string().uuid().optional(),
   city: z.string().optional(),
@@ -17,7 +39,7 @@ const filterSchema = z.object({
 
 router.get("/tutors", async (req, res) => {
   try {
-    const query = filterSchema.parse({
+    const query = legacyFilterSchema.parse({
       studentId: req.query.studentId,
       subjectId: req.query.subjectId,
       city: req.query.city,
@@ -38,7 +60,6 @@ router.get("/tutors", async (req, res) => {
       if (!student) {
         return res.status(404).json({ message: "Student not found" });
       }
-
       if (!effectiveSubjectId && student.preferredSubjects.length > 0) {
         effectiveSubjectId = student.preferredSubjects[0];
       }
@@ -128,19 +149,23 @@ router.get("/tutors", async (req, res) => {
           ? tutor.classes.some((cls) => cls.subjectId === effectiveSubjectId)
           : false;
         const gradeMatch = query.gradeLevel
-          ? tutor.classes.some((cls) => (cls.targetGrade ?? "").toLowerCase().includes(query.gradeLevel!.toLowerCase()))
+          ? tutor.classes.some((cls) =>
+              (cls.targetGrade ?? "")
+                .toLowerCase()
+                .includes(query.gradeLevel!.toLowerCase())
+            )
           : false;
 
         let pricePenalty = 0;
         if (query.priceMin !== undefined || query.priceMax !== undefined) {
-          const priceRange = [
-            query.priceMin ?? Number.NEGATIVE_INFINITY,
-            query.priceMax ?? Number.POSITIVE_INFINITY,
-          ];
+          const minPrice = query.priceMin ?? Number.NEGATIVE_INFINITY;
+          const maxPrice = query.priceMax ?? Number.POSITIVE_INFINITY;
+          const priceRange: [number, number] = [minPrice, maxPrice];
           const closestPrice = tutor.classes.reduce<number | null>((acc, cls) => {
             if (cls.pricePerHour === undefined || cls.pricePerHour === null) return acc;
             if (acc === null) return cls.pricePerHour;
-            return Math.abs(cls.pricePerHour - priceRange[0]) < Math.abs(acc - priceRange[0])
+            return Math.abs(cls.pricePerHour - priceRange[0]) <
+              Math.abs(acc - priceRange[0])
               ? cls.pricePerHour
               : acc;
           }, null);
@@ -167,6 +192,22 @@ router.get("/tutors", async (req, res) => {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ message: "Invalid filters", issues: error.issues });
     }
+    return res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+router.post("/tutors", async (req, res) => {
+  try {
+    const { limit = 10, ...matchingRequest } = matchingSchema.parse(req.body);
+    const matches = await matchTutors(prisma, matchingRequest, limit);
+    return res.json(matches);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res
+        .status(400)
+        .json({ message: "Invalid matching payload", issues: error.issues });
+    }
+    console.error("Failed to match tutors", error);
     return res.status(500).json({ message: "Internal server error" });
   }
 });

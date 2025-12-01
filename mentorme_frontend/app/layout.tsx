@@ -13,7 +13,12 @@ const _sourceSerif_4 = V0_Font_Source_Serif_4({ subsets: ['latin'], weight: ["20
 export const metadata: Metadata = {
   title: 'Mentor Me - Tutor Marketplace',
   description: 'Connect with expert tutors for personalized learning',
-    generator: 'v0.app'
+  generator: 'v0.app',
+  icons: {
+    icon: '/mentorme_logo.png',
+    shortcut: '/mentorme_logo.png',
+    apple: '/mentorme_logo.png',
+  },
 };
 
 export default function RootLayout({
