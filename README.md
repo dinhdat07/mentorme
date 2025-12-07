@@ -1,6 +1,12 @@
 # MentorMe
 
 MentorMe is a full-stack platform that connects students with qualified tutors for mentorship sessions. The repository contains a TypeScript/Express API and a Next.js web client housed in sibling directories.
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/8d332212-b312-4911-9e7d-0a19b63b8fa4"
+       alt="mentorme_logo" 
+       width="400" 
+       height="300" />
+</p>
 
 ## Repository Layout
 
