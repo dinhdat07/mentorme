@@ -6,6 +6,7 @@ import { apiClient } from '@/lib/api-client';
 import { Review } from '@/lib/types';
 import { Star } from 'lucide-react';
 import { useUISettings } from '@/components/ui-settings-context';
+import { useTutorProfile } from '@/hooks/useTutorProfile';
 
 type ThemeMode = 'dark' | 'light';
 type Language = 'vi' | 'en';
@@ -45,8 +46,9 @@ const themeStyles: Record<ThemeMode, Record<string, string>> = {
 };
 
 export default function TutorReviewsPage() {
+  const { profile, isLoading: isProfileLoading } = useTutorProfile();
   const { data: reviews, isLoading } = useSWR<Review[]>(
-    '/api/tutors/me/reviews',
+    profile ? `/api/tutors/${profile.id}/reviews` : null,
     apiClient.get,
     { revalidateOnFocus: false }
   );
@@ -59,29 +61,35 @@ export default function TutorReviewsPage() {
       <div className="p-8 transition-colors duration-300 space-y-8">
         <h1 className={`text-4xl font-bold leading-tight mb-6 ${styles.header}`}>{t.title}</h1>
 
-        {isLoading ? (
+        {isLoading || isProfileLoading ? (
           <div className="flex items-center justify-center h-64">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500" />
+          </div>
+        ) : !profile ? (
+          <div className={`rounded-xl p-12 text-center ${styles.card}`}>
+            <p className={`text-lg ${styles.muted}`}>{language === 'vi' ? 'Không tìm thấy hồ sơ' : 'Profile not found'}</p>
           </div>
         ) : reviews && reviews.length > 0 ? (
           <div className="space-y-4">
             {reviews.map((review, index) => (
               <div
                 key={review.id}
-                className="animate-fadeIn"
-                style={{
-                  animationDelay: `${index * 100}ms`,
-                }}
-              >
-                <div className={`rounded-xl p-6 transition-all duration-300 hover:-translate-y-1 ${styles.card}`}>
-                  <div className="flex items-start justify-between mb-4">
-                    <div>
-                      <p className={`font-semibold mb-1 ${styles.text}`}>Review {review.id.slice(0, 8)}</p>
-                      <p className={`text-sm ${styles.muted}`}>
-                        {new Date(review.createdAt).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <div className={`text-center rounded-lg px-4 py-2 ${styles.ratingCard}`}>
+                    className="animate-fadeIn"
+                    style={{
+                      animationDelay: `${index * 100}ms`,
+                    }}
+                  >
+                    <div className={`rounded-xl p-6 transition-all duration-300 hover:-translate-y-1 ${styles.card}`}>
+                    <div className="flex items-start justify-between mb-4">
+                      <div>
+                        <p className={`font-semibold mb-1 ${styles.text}`}>
+                          Review #{index + 1}: {(review as any)?.booking?.class?.title || 'Review'}
+                        </p>
+                        <p className={`text-sm ${styles.muted}`}>
+                          {new Date(review.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                        <div className={`text-center rounded-lg px-4 py-2 ${styles.ratingCard}`}>
                       <div className="flex items-center gap-1 justify-center mb-1">
                         {[...Array(5)].map((_, i) => (
                           <Star

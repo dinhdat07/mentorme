@@ -185,7 +185,7 @@ export default function Home() {
             {user ? (
               <>
                 <Link
-                  href={user.role === 'STUDENT' ? '/dashboard/student' : '/dashboard/tutor'}
+                  href={user.role === 'STUDENT' ? '/dashboard/student' : user.role === 'ADMIN' ? '/dashboard/admin' : '/dashboard/tutor'}
                   className={`${isDark ? 'text-slate-100 hover:text-pink-300' : 'text-gray-700 hover:text-gradient'} font-medium transition-colors duration-300`}
                 >
                   {t.navDashboard}

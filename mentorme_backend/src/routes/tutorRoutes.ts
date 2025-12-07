@@ -234,6 +234,11 @@ router.get("/:id/reviews", async (req, res) => {
             gradeLevel: true,
           },
         },
+        booking: {
+          include: {
+            class: { select: { id: true, title: true } },
+          },
+        },
       },
     });
     return res.json(reviews);
