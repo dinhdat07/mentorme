@@ -27,9 +27,11 @@ router.get("/", async (req, res) => {
   try {
     const query = listSchema.parse(req.query);
     const where: Prisma.ClassWhereInput = {
-      isDeleted: query.includeDeleted ? undefined : false,
       status: query.status ?? ClassStatus.PUBLISHED,
     };
+    if (!query.includeDeleted) {
+      where.isDeleted = false;
+    }
     if (query.tutorId) where.tutorId = query.tutorId;
     if (query.subjectId) where.subjectId = query.subjectId;
     if (query.city) where.city = query.city;

@@ -139,28 +139,31 @@ router.get("/", async (req, res) => {
 
     const where: Prisma.TutorProfileWhereInput = {
       verified: true,
-      trustScore: query.trustScoreMin ? { gte: query.trustScoreMin } : undefined,
-      city: query.city,
-      district: query.district,
       user: { status: UserStatus.ACTIVE },
     };
+    if (query.trustScoreMin !== undefined) {
+      where.trustScore = { gte: query.trustScoreMin };
+    }
+    if (query.city) where.city = query.city;
+    if (query.district) where.district = query.district;
 
     const searchTerm = query.q?.trim();
+    const andConditions: Prisma.TutorProfileWhereInput[] = [];
     if (searchTerm) {
       const titleFilter: Prisma.ClassWhereInput = {
         status: ClassStatus.PUBLISHED,
         isDeleted: false,
         title: { contains: searchTerm, mode: "insensitive" },
       };
-      where.AND = [
-        ...(where.AND || []),
-        {
-          OR: [
-            { user: { fullName: { contains: searchTerm, mode: "insensitive" } } },
-            { classes: { some: titleFilter } },
-          ],
-        },
-      ];
+      andConditions.push({
+        OR: [
+          { user: { fullName: { contains: searchTerm, mode: "insensitive" } } },
+          { classes: { some: titleFilter } },
+        ],
+      });
+    }
+    if (andConditions.length > 0) {
+      where.AND = andConditions;
     }
 
     if (query.subjectId || query.priceMin !== undefined || query.priceMax !== undefined || searchTerm) {
