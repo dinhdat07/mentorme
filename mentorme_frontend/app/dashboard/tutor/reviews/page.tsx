@@ -57,7 +57,7 @@ export default function TutorReviewsPage() {
   return (
     <DashboardLayout requiredRole={['TUTOR']}>
       <div className="p-8 transition-colors duration-300 space-y-8">
-        <h1 className={`text-4xl font-bold mb-8 ${styles.header}`}>{t.title}</h1>
+        <h1 className={`text-4xl font-bold leading-tight mb-6 ${styles.header}`}>{t.title}</h1>
 
         {isLoading ? (
           <div className="flex items-center justify-center h-64">

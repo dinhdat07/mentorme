@@ -91,11 +91,11 @@ export default function StudentBookingsPage() {
 
   return (
     <DashboardLayout requiredRole={['STUDENT']}>
-      <div className="p-8 transition-colors duration-300 space-y-8">
-        <div className="mb-8 animate-fade-in">
-          <h1 className={`text-4xl font-bold mb-2 ${styles.headerText}`}>{t.title}</h1>
-          <p className={`${styles.muted}`}>{t.subtitle}</p>
-        </div>
+        <div className="p-8 transition-colors duration-300 space-y-8">
+          <div className="mb-10 animate-fade-in">
+            <h1 className={`text-4xl font-bold leading-tight mb-2 ${styles.headerText}`}>{t.title}</h1>
+            <p className={`${styles.muted}`}>{t.subtitle}</p>
+          </div>
 
         {isLoading ? (
           <div className="flex items-center justify-center h-64">

@@ -205,7 +205,7 @@ export default function EditClassPage() {
   return (
     <DashboardLayout requiredRole={['TUTOR']}>
       <div className="p-8">
-        <h1 className={styles.heading}>{t.title}</h1>
+        <h1 className={`${styles.heading} leading-tight mb-6`}>{t.title}</h1>
 
         <form onSubmit={handleSubmit} className={`${styles.card} max-w-2xl`}>
           <div className="space-y-6">

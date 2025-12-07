@@ -112,8 +112,8 @@ export default function StudentProfilePage() {
   return (
     <DashboardLayout requiredRole={['STUDENT']}>
       <div className="p-8 transition-colors duration-300">
-        <div className="mb-8 animate-fade-in">
-          <h1 className={`text-4xl font-bold mb-2 ${styles.title}`}>
+        <div className="mb-10 animate-fade-in">
+          <h1 className={`text-4xl font-bold leading-tight mb-2 ${styles.title}`}>
             {t.title}
           </h1>
           <p className={styles.muted}>{t.subtitle}</p>

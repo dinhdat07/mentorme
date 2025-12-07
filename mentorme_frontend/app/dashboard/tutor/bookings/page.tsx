@@ -154,7 +154,7 @@ export default function TutorBookingsPage() {
     <DashboardLayout requiredRole={['TUTOR']}>
       <div className="p-8 transition-colors duration-300 space-y-8">
         <div className="animate-fade-in space-y-2">
-          <h1 className={`text-4xl font-bold ${styles.title}`}>
+          <h1 className={`text-4xl font-bold leading-tight mb-3 ${styles.title}`}>
             {t.title}
           </h1>
           <p className={styles.subtle}>{t.subtitle}</p>

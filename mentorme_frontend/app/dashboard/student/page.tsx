@@ -84,8 +84,8 @@ export default function StudentDashboard() {
   return (
     <DashboardLayout requiredRole={['STUDENT']}>
       <div className="p-8 transition-colors duration-300 space-y-8">
-        <div className={`rounded-2xl p-8 mb-8 animate-fade-in-up ${isDark ? 'bg-gradient-to-r from-purple-700 to-pink-600 text-white' : 'bg-gradient-to-r from-purple-500 to-pink-400 text-white shadow-lg'}`}>
-          <h1 className="text-4xl font-bold mb-2">{t.welcome}, {user?.fullName}!</h1>
+        <div className={`rounded-2xl p-8 mb-10 animate-fade-in-up ${isDark ? 'bg-gradient-to-r from-purple-700 to-pink-600 text-white' : 'bg-gradient-to-r from-purple-500 to-pink-400 text-white shadow-lg'}`}>
+          <h1 className="text-4xl font-bold leading-tight mb-2">{t.welcome}, {user?.fullName}!</h1>
           <p className="text-white/90">{t.subtitle}</p>
         </div>
 

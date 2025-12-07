@@ -101,8 +101,8 @@ export default function TutorClassesPage() {
   return (
     <DashboardLayout requiredRole={['TUTOR']}>
       <div className="p-8 transition-colors duration-300 space-y-8">
-        <div className="flex items-center justify-between mb-8">
-          <h1 className={`text-4xl font-bold ${styles.header}`}>{t.title}</h1>
+        <div className="flex items-center justify-between mb-10">
+          <h1 className={`text-4xl font-bold leading-tight mb-2 ${styles.header}`}>{t.title}</h1>
           <Link
             href="/dashboard/tutor/classes/new"
             className={`inline-flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all duration-300 ${styles.buttonPrimary}`}
