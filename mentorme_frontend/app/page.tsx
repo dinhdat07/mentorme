@@ -235,15 +235,15 @@ export default function Home() {
                 className="btn-gradient text-white flex items-center justify-center gap-2 px-8 py-4 rounded-full font-semibold text-lg shadow-lg hover:shadow-2xl"
               >
                 {t.btnFindTutor} <ArrowRight className="w-5 h-5" />
-              </button>
-              <button
-                onClick={() => handleGetStarted('tutor')}
-                className={`px-10 py-4 rounded-full font-semibold text-lg transition-all duration-300 shadow-lg hover:shadow-2xl ${
-                  isDark
-                    ? 'bg-white/10 text-white border border-white/30 hover:bg-white/20'
-                    : 'border-2 border-gradient-to-r from-purple-600 to-pink-600 text-gray-900 hover:bg-gradient-subtle'
-                }`}
-              >
+            </button>
+            <button
+              onClick={() => handleGetStarted('tutor')}
+              className={`px-12 py-4 rounded-full font-semibold text-lg transition-all duration-300 shadow-lg hover:shadow-2xl inline-flex items-center gap-2 ${
+                isDark
+                  ? 'bg-white/10 text-white border border-white/30 hover:bg-white/20'
+                  : 'border-2 border-gradient-to-r from-purple-600 to-pink-600 text-gray-900 hover:bg-gradient-subtle'
+              }`}
+            >
                 {t.btnBecomeTutor} <ArrowRight className="w-5 h-5" />
               </button>
             </div>

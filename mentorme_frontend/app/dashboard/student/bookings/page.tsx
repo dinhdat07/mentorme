@@ -113,7 +113,7 @@ export default function StudentBookingsPage() {
                   <div className="flex-1">
                     <h3 className={`text-lg font-bold mb-3 flex items-center gap-2 ${styles.text}`}>
                       <div className="w-1 h-6 bg-gradient-to-b from-purple-500 to-pink-500 rounded-full" />
-                      Booking {booking.id.slice(0, 8)}
+                      {booking.class?.title || `Booking ${booking.id.slice(0, 8)}`}
                     </h3>
                     <div className="space-y-2">
                       <p className={`text-sm flex items-center gap-2 ${styles.text}`}>

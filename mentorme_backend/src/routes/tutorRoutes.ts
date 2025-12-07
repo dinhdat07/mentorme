@@ -1,8 +1,9 @@
 import { Router } from "express";
 import { authGuard } from "../middleware/auth";
-import { ClassStatus, Prisma, UserRole } from "@prisma/client";
+import { ClassStatus, Prisma, UserRole, UserStatus } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { z } from "zod";
+import { updateTutorProfileEmbedding } from "../domain/embeddings";
 
 const router = Router();
 
@@ -52,11 +53,23 @@ router.patch("/me", authGuard([UserRole.TUTOR]), async (req, res) => {
       where: { userId: req.user!.id },
       data,
     });
+
+    // Refresh semantic embedding for matching after profile changes.
+    try {
+      await updateTutorProfileEmbedding(prisma, tutor.id);
+    } catch (err) {
+      console.error("Failed to update tutor embedding", err);
+      return res
+        .status(500)
+        .json({ message: "Cập nhật hồ sơ thành công nhưng tạo embedding thất bại, vui lòng thử lại sau" });
+    }
+
     return res.json(tutor);
   } catch (error) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ message: "Invalid payload", issues: error.issues });
     }
+    console.error("Failed to update tutor profile", error);
     return res.status(500).json({ message: "Internal server error" });
   }
 });
@@ -88,6 +101,7 @@ router.get("/", async (req, res) => {
       priceMin: z.number().optional(),
       priceMax: z.number().optional(),
       trustScoreMin: z.number().optional(),
+      q: z.string().optional(),
       page: z.number().int().min(1).optional().default(1),
       pageSize: z.number().int().min(1).max(50).optional().default(10),
     });
@@ -99,6 +113,7 @@ router.get("/", async (req, res) => {
       priceMin: req.query.priceMin ? Number(req.query.priceMin) : undefined,
       priceMax: req.query.priceMax ? Number(req.query.priceMax) : undefined,
       trustScoreMin: req.query.trustScoreMin ? Number(req.query.trustScoreMin) : undefined,
+      q: req.query.q ? String(req.query.q) : undefined,
       page: req.query.page ? Number(req.query.page) : undefined,
       pageSize: req.query.pageSize ? Number(req.query.pageSize) : undefined,
     });
@@ -122,14 +137,33 @@ router.get("/", async (req, res) => {
       classFilter.pricePerHour = priceRange;
     }
 
-    const where: Record<string, unknown> = {
+    const where: Prisma.TutorProfileWhereInput = {
       verified: true,
       trustScore: query.trustScoreMin ? { gte: query.trustScoreMin } : undefined,
       city: query.city,
       district: query.district,
+      user: { status: UserStatus.ACTIVE },
     };
 
-    if (query.subjectId || query.priceMin !== undefined || query.priceMax !== undefined) {
+    const searchTerm = query.q?.trim();
+    if (searchTerm) {
+      const titleFilter: Prisma.ClassWhereInput = {
+        status: ClassStatus.PUBLISHED,
+        isDeleted: false,
+        title: { contains: searchTerm, mode: "insensitive" },
+      };
+      where.AND = [
+        ...(where.AND || []),
+        {
+          OR: [
+            { user: { fullName: { contains: searchTerm, mode: "insensitive" } } },
+            { classes: { some: titleFilter } },
+          ],
+        },
+      ];
+    }
+
+    if (query.subjectId || query.priceMin !== undefined || query.priceMax !== undefined || searchTerm) {
       where.classes = { some: classFilter };
     }
 
@@ -141,6 +175,7 @@ router.get("/", async (req, res) => {
         skip,
         take: query.pageSize,
         include: {
+          user: true,
           classes: {
             where: { status: ClassStatus.PUBLISHED, isDeleted: false },
           },
@@ -155,7 +190,7 @@ router.get("/", async (req, res) => {
     ]);
 
     return res.json({
-      items,
+      data: items,
       total,
       page: query.page,
       pageSize: query.pageSize,
@@ -226,11 +261,16 @@ router.get("/:id/trust-score", async (req, res) => {
 
 router.get("/:id", async (req, res) => {
   try {
-    const tutor = await prisma.tutorProfile.findUnique({
-      where: { id: req.params.id },
+    const tutor = await prisma.tutorProfile.findFirst({
+      where: {
+        id: req.params.id,
+        verified: true,
+        user: { status: UserStatus.ACTIVE },
+      },
       include: {
+        user: true,
         classes: {
-          where: { isDeleted: false },
+          where: { isDeleted: false, status: ClassStatus.PUBLISHED },
         },
       },
     });

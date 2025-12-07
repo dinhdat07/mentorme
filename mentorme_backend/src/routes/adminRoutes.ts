@@ -17,7 +17,10 @@ router.use(authGuard([UserRole.ADMIN]));
 router.get("/tutors/pending", async (_req, res) => {
   try {
     const tutors = await prisma.tutorProfile.findMany({
-      where: { verified: false },
+      where: {
+        verified: false,
+        user: { status: UserStatus.PENDING },
+      },
       include: {
         user: true,
       },

@@ -16,6 +16,8 @@ const translations: Record<Language, any> = {
   vi: {
     title: 'Tìm kiếm gia sư',
     subtitle: 'Chọn gia sư phù hợp với mục tiêu học tập của bạn',
+    searchLabel: 'Tìm kiếm',
+    searchPlaceholder: 'Ví dụ: Toán 9, Nguyễn Văn A',
     filters: 'Bộ lọc',
     subject: 'Môn học',
     allSubjects: 'Tất cả môn học',
@@ -29,11 +31,13 @@ const translations: Record<Language, any> = {
     page: 'Trang',
     empty: 'Không tìm thấy gia sư phù hợp',
     emptyCta: 'Đặt lại bộ lọc',
-    perHour: '/giờ',
+    perHour: 'VNĐ/giờ',
   },
   en: {
     title: 'Discover Expert Tutors',
     subtitle: 'Find the perfect tutor matched to your learning goals',
+    searchLabel: 'Search',
+    searchPlaceholder: 'e.g., Grade 9 Math, Alice',
     filters: 'Filters',
     subject: 'Subject',
     allSubjects: 'All Subjects',
@@ -47,7 +51,7 @@ const translations: Record<Language, any> = {
     page: 'Page',
     empty: 'No tutors found matching your criteria',
     emptyCta: 'Reset Filters',
-    perHour: '/hour',
+    perHour: 'VND/hour',
   },
 };
 
@@ -85,13 +89,15 @@ export default function TutorsPage() {
     subjectId: '',
     city: '',
     priceMin: 0,
-    priceMax: 500,
+    priceMax: 500000,
     trustScoreMin: 0,
+    q: '',
     page: 1,
     pageSize: 12,
   });
 
-  const { tutors, isLoading } = useTutors(filters);
+  const [searchFilters, setSearchFilters] = useState(filters);
+  const { tutors, isLoading } = useTutors(searchFilters);
   const t = translations[language];
   const styles = themeStyles[theme];
 
@@ -100,15 +106,22 @@ export default function TutorsPage() {
   };
 
   const resetFilters = () => {
-    setFilters({
+    const base = {
       subjectId: '',
       city: '',
       priceMin: 0,
-      priceMax: 500,
+      priceMax: 500000,
       trustScoreMin: 0,
+      q: '',
       page: 1,
       pageSize: 12,
-    });
+    };
+    setFilters(base);
+    setSearchFilters(base);
+  };
+
+  const handleSearch = () => {
+    setSearchFilters(filters);
   };
 
   return (
@@ -129,6 +142,21 @@ export default function TutorsPage() {
               </div>
 
               <div className="space-y-6">
+                {/* Search by tutor/class */}
+                <div className="animate-fade-in-up">
+                  <label className={`block text-sm font-semibold mb-2 ${styles.textMuted}`}>{t.searchLabel}</label>
+                  <div className="relative">
+                    <Search className={`absolute left-3 top-2.5 w-4 h-4 ${styles.textMuted}`} />
+                    <input
+                      type="text"
+                      value={filters.q}
+                      onChange={(e) => handleFilterChange('q', e.target.value)}
+                      placeholder={t.searchPlaceholder}
+                      className={`w-full pl-9 pr-3 py-2 rounded-lg transition-all ${styles.input}`}
+                    />
+                  </div>
+                </div>
+
                 {/* Subject Filter */}
                 <div className="animate-fade-in-up">
                   <label className={`block text-sm font-semibold mb-2 ${styles.textMuted}`}>{t.subject}</label>
@@ -164,12 +192,13 @@ export default function TutorsPage() {
                 {/* Price Range */}
                 <div className="animate-fade-in-up delay-200">
                   <label className={`block text-sm font-semibold mb-3 ${styles.textMuted}`}>
-                    {t.maxPrice}: <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">${filters.priceMax}{t.perHour}</span>
+                    {t.maxPrice}: <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">{filters.priceMax.toLocaleString('vi-VN')} ₫/giờ</span>
                   </label>
                   <input
                     type="range"
                     min="0"
-                    max="500"
+                    max="500000"
+                    step="50000"
                     value={filters.priceMax}
                     onChange={(e) => handleFilterChange('priceMax', Number(e.target.value))}
                     className="w-full accent-purple-600"
@@ -191,13 +220,22 @@ export default function TutorsPage() {
                   />
                 </div>
 
-                <button
-                  onClick={resetFilters}
-                  className={`w-full px-4 py-2 rounded-lg font-semibold transition-all duration-300 flex items-center justify-center gap-2 animate-fade-in-up delay-400 shadow-lg ${styles.buttonPrimary}`}
-                >
-                  <RotateCcw className="w-4 h-4" />
-                  {t.reset}
-                </button>
+                <div className="flex flex-col gap-3">
+                  <button
+                    onClick={handleSearch}
+                    className={`w-full px-4 py-2 rounded-lg font-semibold transition-all duration-300 flex items-center justify-center gap-2 shadow-lg ${styles.buttonPrimary}`}
+                  >
+                    <Search className="w-4 h-4" />
+                    {t.searchLabel}
+                  </button>
+                  <button
+                    onClick={resetFilters}
+                    className={`w-full px-4 py-2 rounded-lg font-semibold transition-all duration-300 flex items-center justify-center gap-2 shadow-lg ${styles.buttonGhost}`}
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                    {t.reset}
+                  </button>
+                </div>
               </div>
             </div>
 

@@ -104,6 +104,13 @@ router.get("/", authGuard(), async (req, res) => {
       orderBy: { createdAt: "desc" },
       include: {
         class: true,
+        student: {
+          include: {
+            user: {
+              select: { fullName: true, email: true, phone: true },
+            },
+          },
+        },
       },
     });
 

@@ -11,6 +11,7 @@ export interface TutorFilters {
   priceMin?: number;
   priceMax?: number;
   trustScoreMin?: number;
+  q?: string;
   page?: number;
   pageSize?: number;
 }
@@ -19,9 +20,9 @@ export const useTutors = (filters?: TutorFilters) => {
   const queryParams = new URLSearchParams();
   if (filters) {
     Object.entries(filters).forEach(([key, value]) => {
-      if (value !== undefined) {
-        queryParams.append(key, String(value));
-      }
+      if (value === undefined) return;
+      if (typeof value === 'string' && value.trim() === '') return;
+      queryParams.append(key, String(value));
     });
   }
 
@@ -33,7 +34,7 @@ export const useTutors = (filters?: TutorFilters) => {
   );
 
   return {
-    tutors: data?.data || [],
+    tutors: data?.data || data?.items || [],
     total: data?.total || 0,
     isLoading,
     error,

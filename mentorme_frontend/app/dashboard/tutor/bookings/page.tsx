@@ -167,12 +167,12 @@ export default function TutorBookingsPage() {
         ) : (
           <div className="space-y-8">
             {/* Pending Bookings */}
-            <div className={`animate-fade-in ${styles.card} ${styles.sectionCard}`}>
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-9 h-9 rounded-full flex items-center justify-center bg-yellow-500/15">
-                  <Clock className="w-5 h-5 text-yellow-500" />
+            <div className={`animate-fade-in ${styles.card} ${styles.sectionCard} p-5`}>
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-7 h-7 rounded-full flex items-center justify-center bg-yellow-500/15">
+                  <Clock className="w-4 h-4 text-yellow-500" />
                 </div>
-                <h2 className={`text-2xl font-bold leading-tight ${styles.text}`}>
+                <h2 className={`text-xl font-bold leading-tight ${styles.text}`}>
                   {t.pending} ({groupedBookings.PENDING.length})
                 </h2>
               </div>
@@ -188,8 +188,13 @@ export default function TutorBookingsPage() {
                         <div>
                           <h3 className={`text-lg font-bold mb-2 flex items-center gap-2 ${styles.text}`}>
                             <div className="w-1 h-6 bg-gradient-to-b from-yellow-400 to-orange-400 rounded-full" />
-                            {booking.isTrial ? t.trial : t.classBooking}
+                            {booking.class?.title || (booking.isTrial ? t.trial : t.classBooking)}
                           </h3>
+                          {booking.student?.user?.fullName && (
+                            <p className={`text-xs ${styles.subtle}`}>
+                              {language === 'vi' ? 'Học viên' : 'Student'}: {booking.student.user.fullName}
+                            </p>
+                          )}
                           <p className={`text-sm mb-1 ${styles.muted}`}>{booking.requestedHoursPerWeek} {t.hoursPerWeek}</p>
                           <p className={`text-sm ${styles.subtle}`}>
                             {t.start}: {new Date(booking.startDateExpected).toLocaleDateString()}
@@ -232,12 +237,12 @@ export default function TutorBookingsPage() {
             </div>
 
             {/* Confirmed Bookings */}
-            <div className={`animate-fade-in ${styles.card} ${styles.sectionCard}`}>
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-9 h-9 rounded-full flex items-center justify-center bg-green-500/15">
-                  <CheckCircle className="w-5 h-5 text-green-500" />
+            <div className={`animate-fade-in ${styles.card} ${styles.sectionCard} p-5`}>
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-7 h-7 rounded-full flex items-center justify-center bg-green-500/15">
+                  <CheckCircle className="w-4 h-4 text-green-500" />
                 </div>
-                <h2 className={`text-2xl font-bold leading-tight ${styles.text}`}>
+                <h2 className={`text-xl font-bold leading-tight ${styles.text}`}>
                   {t.confirmed} ({groupedBookings.CONFIRMED.length})
                 </h2>
               </div>
@@ -253,8 +258,13 @@ export default function TutorBookingsPage() {
                         <div>
                           <h3 className={`text-lg font-bold mb-2 flex items-center gap-2 ${styles.text}`}>
                             <div className="w-1 h-6 bg-gradient-to-b from-green-400 to-emerald-400 rounded-full" />
-                            {t.classBooking}
+                            {booking.class?.title || t.classBooking}
                           </h3>
+                          {booking.student?.user?.fullName && (
+                            <p className={`text-xs ${styles.subtle}`}>
+                              {language === 'vi' ? 'Học viên' : 'Student'}: {booking.student.user.fullName}
+                            </p>
+                          )}
                           <p className={`text-sm mb-1 ${styles.muted}`}>{booking.requestedHoursPerWeek} {t.hoursPerWeek}</p>
                           <p className={`text-sm ${styles.subtle}`}>
                             {t.start}: {new Date(booking.startDateExpected).toLocaleDateString()}
@@ -280,12 +290,12 @@ export default function TutorBookingsPage() {
             </div>
 
             {/* Completed Bookings */}
-            <div className={`animate-fade-in ${styles.card} ${styles.sectionCard}`}>
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-9 h-9 rounded-full flex items-center justify-center bg-slate-400/15">
-                  <CheckCircle className="w-5 h-5 text-slate-400" />
+            <div className={`animate-fade-in ${styles.card} ${styles.sectionCard} p-5`}>
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-7 h-7 rounded-full flex items-center justify-center bg-slate-400/15">
+                  <CheckCircle className="w-4 h-4 text-slate-400" />
                 </div>
-                <h2 className={`text-2xl font-bold leading-tight ${styles.text}`}>
+                <h2 className={`text-xl font-bold leading-tight ${styles.text}`}>
                   {t.completed} ({groupedBookings.COMPLETED.length})
                 </h2>
               </div>

@@ -8,6 +8,8 @@ import { usePendingTutors } from '@/hooks/usePendingTutors';
 import { CheckCircle, XCircle, Users, BookOpen, BookMarked } from 'lucide-react';
 import { useUISettings } from '@/components/ui-settings-context';
 
+const formatVND = (value: number) => `${value.toLocaleString('vi-VN')} ₫`;
+
 type ThemeMode = 'dark' | 'light';
 type Language = 'vi' | 'en';
 
@@ -59,7 +61,7 @@ const translations: Record<Language, Translations> = {
     noBookings: 'Chưa có lịch đặt',
     classes: {
       tutor: 'Gia sư',
-      price: '/giờ',
+      price: 'VNĐ/giờ',
       location: 'Hình thức',
     },
     noClasses: 'Chưa có lớp học',
@@ -98,7 +100,7 @@ const translations: Record<Language, Translations> = {
     noBookings: 'No bookings found',
     classes: {
       tutor: 'Tutor',
-      price: '/hour',
+      price: 'VND/hour',
       location: 'Location',
     },
     noClasses: 'No classes found',
@@ -282,13 +284,32 @@ export default function AdminDashboard() {
                     style={{ animationDelay: `${idx * 0.1}s` }}
                   >
                     <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1">
-                        <h3 className={`text-lg font-bold mb-2 ${styles.textPrimary}`}>{tutor.userId}</h3>
-                        {tutor.bio && <p className={`mb-2 line-clamp-2 ${styles.textSecondary}`}>{tutor.bio}</p>}
-                        <div className={`space-y-1 text-sm ${styles.textMuted}`}>
-                          {tutor.education && <p>{t.education}: {tutor.education.substring(0, 60)}...</p>}
-                          {tutor.city && <p>{t.location}: {tutor.city}</p>}
-                          <p>{t.experience}: {tutor.yearsOfExperience} {t.years}</p>
+                      <div className="flex-1 space-y-2">
+                        <div>
+                          <h3 className={`text-lg font-bold ${styles.textPrimary}`}>{tutor.user?.fullName ?? tutor.userId}</h3>
+                          <p className={`text-sm ${styles.textMuted}`}>
+                            ID: {tutor.userId.slice(0, 8)} • Email: {tutor.user?.email ?? '—'} • Phone: {tutor.user?.phone ?? '—'}
+                          </p>
+                        </div>
+                        {tutor.bio && <p className={`mb-1 line-clamp-2 ${styles.textSecondary}`}>{tutor.bio}</p>}
+                        <div className={`flex flex-wrap gap-2 text-xs ${styles.textMuted}`}>
+                          {tutor.education && (
+                            <span className="px-2 py-1 rounded-full border border-dashed border-current">
+                              {t.education}: {tutor.education.substring(0, 80)}{tutor.education.length > 80 ? '…' : ''}
+                            </span>
+                          )}
+                          <span className="px-2 py-1 rounded-full border border-current">
+                            {t.experience}: {tutor.yearsOfExperience} {t.years}
+                          </span>
+                          <span className="px-2 py-1 rounded-full border border-current">
+                            Trust: {tutor.trustScore.toFixed(1)}
+                          </span>
+                          <span className="px-2 py-1 rounded-full border border-current">
+                            Verified ID: {tutor.verified ? 'Yes' : 'No'}
+                          </span>
+                          <span className="px-2 py-1 rounded-full border border-current">
+                            City/District: {[tutor.city, tutor.district].filter(Boolean).join(', ') || 'N/A'}
+                          </span>
                         </div>
                       </div>
                       <div className="text-right">
@@ -359,8 +380,8 @@ export default function AdminDashboard() {
                         style={{ animationDelay: `${idx * 0.05}s` }}
                       >
                         <td className={`px-6 py-4 text-sm ${styles.textSecondary}`}>{booking.id.slice(0, 8)}</td>
-                        <td className={`px-6 py-4 text-sm ${styles.textSecondary}`}>{booking.studentId.slice(0, 8)}</td>
-                        <td className={`px-6 py-4 text-sm ${styles.textSecondary}`}>{booking.tutorId.slice(0, 8)}</td>
+                        <td className={`px-6 py-4 text-sm ${styles.textSecondary}`}>{booking.student?.user?.fullName || booking.studentId.slice(0, 8)}</td>
+                        <td className={`px-6 py-4 text-sm ${styles.textSecondary}`}>{booking.class?.title || booking.tutorId.slice(0, 8)}</td>
                         <td className="px-6 py-4">
                           <span
                             className={`px-3 py-1 rounded-full text-sm font-medium ${
@@ -419,7 +440,7 @@ export default function AdminDashboard() {
                         <p className={`text-sm mb-2 line-clamp-1 ${styles.textSecondary}`}>{cls.description}</p>
                         <div className={`flex gap-4 text-sm ${styles.textMuted}`}>
                           <span>{t.classes.tutor}: {cls.tutorId.slice(0, 8)}</span>
-                          <span>${cls.pricePerHour}{t.classes.price}</span>
+                          <span>{formatVND(cls.pricePerHour)} ({t.classes.price})</span>
                           <span>{t.classes.location}: {cls.locationType}</span>
                         </div>
                       </div>

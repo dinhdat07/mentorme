@@ -168,7 +168,7 @@ export default function StudentDashboard() {
                   className={`flex items-center justify-between p-4 rounded-lg transition-all duration-300 border animate-fade-in-up delay-${100 + idx * 100} ${isDark ? 'bg-white/5 border-white/10 hover:bg-white/10' : 'bg-slate-50 border-slate-200 hover:bg-white'}`}
                 >
                   <div>
-                    <p className={`font-semibold ${styles.heading}`}>Booking {booking.id.slice(0, 8)}</p>
+                    <p className={`font-semibold ${styles.heading}`}>{booking.class?.title || `Booking ${booking.id.slice(0, 8)}`}</p>
                     <p className={`text-sm ${styles.muted}`}>{booking.isTrial ? t.trial : t.regular}</p>
                   </div>
                   <span

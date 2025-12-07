@@ -12,6 +12,54 @@ import { z } from "zod";
 
 const router = Router();
 
+const listSchema = z.object({
+  tutorId: z.string().uuid().optional(),
+  subjectId: z.string().uuid().optional(),
+  status: z.nativeEnum(ClassStatus).optional(),
+  city: z.string().optional(),
+  district: z.string().optional(),
+  includeDeleted: z.coerce.boolean().optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(50).default(20),
+});
+
+router.get("/", async (req, res) => {
+  try {
+    const query = listSchema.parse(req.query);
+    const where: Prisma.ClassWhereInput = {
+      isDeleted: query.includeDeleted ? undefined : false,
+      status: query.status ?? ClassStatus.PUBLISHED,
+    };
+    if (query.tutorId) where.tutorId = query.tutorId;
+    if (query.subjectId) where.subjectId = query.subjectId;
+    if (query.city) where.city = query.city;
+    if (query.district) where.district = query.district;
+
+    const skip = (query.page - 1) * query.pageSize;
+    const [items, total] = await Promise.all([
+      prisma.class.findMany({
+        where,
+        skip,
+        take: query.pageSize,
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.class.count({ where }),
+    ]);
+
+    return res.json({
+      data: items,
+      total,
+      page: query.page,
+      pageSize: query.pageSize,
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ message: "Invalid filters", issues: error.issues });
+    }
+    return res.status(500).json({ message: "Internal server error" });
+  }
+});
+
 const baseClassSchema = z.object({
   subjectId: z.string().uuid(),
   title: z.string().min(1),

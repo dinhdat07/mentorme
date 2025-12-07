@@ -209,7 +209,7 @@ export default function TutorDashboard() {
                   >
                     <div>
                       <p className={`font-semibold transition-colors ${styles.heading}`}>{cls.title}</p>
-                      <p className={`text-sm ${styles.muted}`}>${cls.pricePerHour}/hour</p>
+                      <p className={`text-sm ${styles.muted}`}>{cls.pricePerHour.toLocaleString('vi-VN')} ₫/giờ</p>
                     </div>
                     <span
                       className={`px-3 py-1 rounded-full text-xs font-semibold border ${
@@ -250,7 +250,7 @@ export default function TutorDashboard() {
                       isDark ? 'bg-yellow-500/10 border-yellow-400/40 hover:bg-yellow-500/20' : 'bg-yellow-50 border-yellow-200 hover:bg-white'
                     }`}
                   >
-                    <p className={`font-semibold ${styles.heading}`}>Booking {booking.id.slice(0, 8)}</p>
+                    <p className={`font-semibold ${styles.heading}`}>{booking.class?.title || `Booking ${booking.id.slice(0, 8)}`}</p>
                     <p className={`text-sm ${styles.muted}`}>{booking.requestedHoursPerWeek} hours/week</p>
                     <Link
                       href={`/dashboard/tutor/bookings/${booking.id}`}

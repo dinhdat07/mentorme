@@ -137,7 +137,7 @@ export default function TutorClassesPage() {
                             <p className={`text-sm mb-3 line-clamp-1 ${styles.muted}`}>{cls.description}</p>
                             <div className="flex gap-6 text-sm">
                               <span className={styles.muted}>
-                                <span className="text-purple-400">{t.price}:</span> ${cls.pricePerHour}/hour
+                                <span className="text-purple-400">{t.price}:</span> {cls.pricePerHour.toLocaleString('vi-VN')} ₫/giờ
                               </span>
                               <span className={styles.muted}>
                                 <span className="text-purple-400">{t.type}:</span> {cls.locationType}
@@ -189,7 +189,7 @@ export default function TutorClassesPage() {
                             <p className={`text-sm mb-3 line-clamp-1 ${styles.muted}`}>{cls.description}</p>
                             <div className="flex gap-6 text-sm">
                               <span className={styles.muted}>
-                                <span className="text-purple-400">{t.price}:</span> ${cls.pricePerHour}/hour
+                                <span className="text-purple-400">{t.price}:</span> {cls.pricePerHour.toLocaleString('vi-VN')} ₫/giờ
                               </span>
                               <span className={styles.muted}>
                                 <span className="text-purple-400">{t.type}:</span> {cls.locationType}
@@ -241,7 +241,7 @@ export default function TutorClassesPage() {
                             <p className={`text-sm mb-3 line-clamp-1 ${styles.muted}`}>{cls.description}</p>
                             <div className="flex gap-6 text-sm">
                               <span className={styles.muted}>
-                                <span className="text-purple-400">{t.price}:</span> ${cls.pricePerHour}/hour
+                                <span className="text-purple-400">{t.price}:</span> {cls.pricePerHour.toLocaleString('vi-VN')} ₫/giờ
                               </span>
                               <span className={styles.muted}>
                                 <span className="text-purple-400">{t.type}:</span> {cls.locationType}

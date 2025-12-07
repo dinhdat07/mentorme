@@ -32,10 +32,19 @@ const clearToken = () => {
   }
 };
 
-async function apiCall<T>(
-  endpoint: string,
-  options: RequestInit = {}
-): Promise<T> {
+export class ApiError<T = any> extends Error {
+  status: number;
+  data?: T;
+
+  constructor(message: string, status: number, data?: T) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.data = data;
+  }
+}
+
+async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
   const token = getToken();
 
@@ -53,17 +62,26 @@ async function apiCall<T>(
     headers,
   });
 
-  if (response.status === 401) {
-    clearToken();
-    if (typeof window !== 'undefined') {
-      window.location.href = '/login';
-    }
-  }
-
-  const data = await response.json();
+  const data = await response.json().catch(() => null);
 
   if (!response.ok) {
-    throw new Error(data.message || 'API Error');
+    // Clear token and redirect on auth failure
+    if (response.status === 401) {
+      clearToken();
+      if (typeof window !== 'undefined') {
+        window.location.href = '/login';
+      }
+    }
+
+    let message = (data && data.message) || `API Error (${response.status})`;
+    if (response.status === 401) {
+      message = data?.message || 'Bạn chưa đăng nhập hoặc phiên đã hết hạn';
+    } else if (response.status === 403) {
+      message = data?.message || 'Bạn chưa được phê duyệt để thực hiện hành động này';
+    } else if (response.status === 400) {
+      message = data?.message || 'Yêu cầu không hợp lệ';
+    }
+    throw new ApiError(message, response.status, data || undefined);
   }
 
   return data;

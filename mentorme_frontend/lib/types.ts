@@ -109,6 +109,8 @@ export interface Booking {
   cancelledBy?: string;
   createdAt: string;
   updatedAt: string;
+  class?: Class;
+  student?: (StudentProfile & { user?: User });
 }
 
 export interface Review {

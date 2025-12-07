@@ -39,12 +39,12 @@ const navTranslations: Record<Language, Record<string, string>> = {
   },
 };
 
-export const SidebarNav = ({ theme = 'dark' }: SidebarNavProps) => {
+export const SidebarNav = ({ theme }: SidebarNavProps) => {
   const router = useRouter();
   const pathname = usePathname();
   const { logout, user } = useAuthContext();
   const { theme: ctxTheme, language, setLanguage, setTheme } = useUISettings();
-  const resolvedTheme = theme || ctxTheme;
+  const resolvedTheme = theme ?? ctxTheme;
   const t = navTranslations[language];
 
   const getNavItems = () => {
