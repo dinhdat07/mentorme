@@ -29,12 +29,14 @@ export const TutorCard = ({ tutor }: TutorCardProps) => {
     btn: isDark ? 'text-purple-200' : 'text-purple-700',
   };
 
+  const displayName = tutor.user?.fullName || tutor.bio || (language === 'vi' ? 'Gia sư' : 'Tutor');
+
   return (
     <Link href={`/tutors/${tutor.id}`}>
       <div className={`rounded-lg transition h-full ${styles.card} ${styles.shadow}`}>
         <div className="p-6 space-y-4">
           {/* Tutor Info */}
-          <h3 className="text-lg font-bold line-clamp-1">{tutor.bio ? tutor.bio.substring(0, 0) : ''}{tutor.user?.fullName ?? 'Tutor'}</h3>
+          <h3 className="text-lg font-bold line-clamp-1">{displayName}</h3>
           {tutor.bio && <p className={`text-sm line-clamp-2 ${styles.muted}`}>{tutor.bio}</p>}
 
           {/* Education */}

@@ -254,11 +254,17 @@ router.patch("/:id/cancel", authGuard([UserRole.STUDENT, UserRole.TUTOR, UserRol
       return res.status(404).json({ message: "Booking not found" });
     }
 
-    if (
-      booking.status === BookingStatus.CANCELLED ||
-      booking.status === BookingStatus.COMPLETED
-    ) {
+    const isFinalized =
+      booking.status === BookingStatus.CANCELLED || booking.status === BookingStatus.COMPLETED;
+    if (isFinalized) {
       return res.status(400).json({ message: "Booking already finalized" });
+    }
+    // Nếu đã confirm và không phải lớp thử, không cho hủy
+    const isConfirmedNonTrial = booking.status === BookingStatus.CONFIRMED && !booking.isTrial;
+    if (isConfirmedNonTrial) {
+      return res
+        .status(400)
+        .json({ message: "Confirmed bookings cannot be cancelled unless it is a trial class" });
     }
 
     let cancelledBy: CancelledBy;

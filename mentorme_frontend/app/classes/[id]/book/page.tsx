@@ -19,6 +19,9 @@ const translations: Record<Language, any> = {
     title: 'Đặt lớp',
     trial: 'Đây là lớp thử',
     hours: 'Số giờ mỗi tuần *',
+    slots: 'Khung giờ mong muốn (có thể thêm nhiều, để trống nếu linh hoạt)',
+    addSlot: 'Thêm khung giờ',
+    invalidSlot: 'Khung giờ chưa đủ thông tin hoặc không hợp lệ',
     startDate: 'Ngày bắt đầu *',
     message: 'Lời nhắn cho gia sư',
     placeholder: 'Chia sẻ nhu cầu, mục tiêu học tập...',
@@ -33,6 +36,9 @@ const translations: Record<Language, any> = {
     title: 'Book Class',
     trial: 'This is a trial class',
     hours: 'Hours Per Week *',
+    slots: 'Preferred time slots (add multiple; leave empty if flexible)',
+    addSlot: 'Add slot',
+    invalidSlot: 'Please complete valid start/end times',
     startDate: 'Start Date *',
     message: 'Message to Tutor',
     placeholder: 'Tell the tutor about your needs, goals, etc.',
@@ -100,7 +106,18 @@ export default function BookClassPage() {
     requestedHoursPerWeek: 2,
     startDateExpected: new Date().toISOString().split('T')[0],
     noteFromStudent: '',
+    slots: [{ dayOfWeek: 1, startTime: '', endTime: '' }],
   });
+
+  const dayOptions = [
+    { value: 0, vi: 'Chủ nhật', en: 'Sunday' },
+    { value: 1, vi: 'Thứ 2', en: 'Monday' },
+    { value: 2, vi: 'Thứ 3', en: 'Tuesday' },
+    { value: 3, vi: 'Thứ 4', en: 'Wednesday' },
+    { value: 4, vi: 'Thứ 5', en: 'Thursday' },
+    { value: 5, vi: 'Thứ 6', en: 'Friday' },
+    { value: 6, vi: 'Thứ 7', en: 'Saturday' },
+  ];
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -117,6 +134,12 @@ export default function BookClassPage() {
     }
   };
 
+  const timeToMinutes = (time: string) => {
+    const [h, m] = time.split(':').map((v) => Number(v));
+    if (Number.isNaN(h) || Number.isNaN(m)) return NaN;
+    return h * 60 + m;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -124,9 +147,42 @@ export default function BookClassPage() {
     setIsLoading(true);
 
     try {
+      // Build preferred slots text (optional)
+      const parsedSlots = formData.slots
+        .map((slot) => {
+          const start = slot.startTime;
+          const end = slot.endTime;
+          if (!start && !end) return null; // skip empty slot
+          if (!start || !end) {
+            throw new Error(t.invalidSlot);
+          }
+          const startMinute = timeToMinutes(start);
+          const endMinute = timeToMinutes(end);
+          if (Number.isNaN(startMinute) || Number.isNaN(endMinute) || endMinute <= startMinute) {
+            throw new Error(t.invalidSlot);
+          }
+          return {
+            ...slot,
+          };
+        })
+        .filter((s) => s !== null) as { dayOfWeek: number; startTime: string; endTime: string }[];
+
+      let slotNote = '';
+      if (parsedSlots.length > 0) {
+        const label = language === 'vi' ? 'Khung giờ mong muốn' : 'Preferred slots';
+        const lines = parsedSlots.map((slot) => {
+          const dayLabel = (language === 'vi' ? dayOptions.find((d) => d.value === slot.dayOfWeek)?.vi : dayOptions.find((d) => d.value === slot.dayOfWeek)?.en) || `Day ${slot.dayOfWeek}`;
+          return `- ${dayLabel}: ${slot.startTime} - ${slot.endTime}`;
+        });
+        slotNote = `\n${label}:\n${lines.join('\n')}`;
+      }
+
       await apiClient.post('/api/bookings', {
         classId,
-        ...formData,
+        isTrial: formData.isTrial,
+        requestedHoursPerWeek: formData.requestedHoursPerWeek,
+        startDateExpected: formData.startDateExpected,
+        noteFromStudent: `${formData.noteFromStudent || ''}${slotNote}`,
       });
       router.push('/dashboard/student/bookings');
     } catch (err: any) {
@@ -217,6 +273,87 @@ export default function BookClassPage() {
                       </option>
                     ))}
                   </select>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className={`block text-sm font-medium ${styles.label}`}>{t.slots}</label>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          slots: [...prev.slots, { dayOfWeek: 1, startTime: '', endTime: '' }],
+                        }))
+                      }
+                      className="text-xs px-3 py-1 rounded-md border border-purple-300 text-purple-600 hover:bg-purple-50"
+                    >
+                      {t.addSlot}
+                    </button>
+                  </div>
+                  <div className="space-y-2">
+                    {formData.slots.map((slot, idx) => (
+                      <div key={idx} className="grid grid-cols-3 gap-2 items-center">
+                        <select
+                          value={slot.dayOfWeek}
+                          onChange={(e) =>
+                            setFormData((prev) => {
+                              const next = [...prev.slots];
+                              next[idx] = { ...next[idx], dayOfWeek: Number(e.target.value) };
+                              return { ...prev, slots: next };
+                            })
+                          }
+                          className={styles.select}
+                        >
+                          {dayOptions.map((day) => (
+                            <option key={day.value} value={day.value}>
+                              {language === 'vi' ? day.vi : day.en}
+                            </option>
+                          ))}
+                        </select>
+                        <input
+                          type="time"
+                          value={slot.startTime}
+                          onChange={(e) =>
+                            setFormData((prev) => {
+                              const next = [...prev.slots];
+                              next[idx] = { ...next[idx], startTime: e.target.value };
+                              return { ...prev, slots: next };
+                            })
+                          }
+                          className={styles.input}
+                        />
+                        <div className="flex gap-2">
+                          <input
+                            type="time"
+                            value={slot.endTime}
+                            onChange={(e) =>
+                              setFormData((prev) => {
+                                const next = [...prev.slots];
+                                next[idx] = { ...next[idx], endTime: e.target.value };
+                                return { ...prev, slots: next };
+                              })
+                            }
+                            className={styles.input}
+                          />
+                          {formData.slots.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setFormData((prev) => ({
+                                  ...prev,
+                                  slots: prev.slots.filter((_, sIdx) => sIdx !== idx),
+                                }))
+                              }
+                              className="text-xs px-2 py-1 rounded-md border border-red-300 text-red-500 hover:bg-red-50"
+                            >
+                              X
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
 
                 <div>

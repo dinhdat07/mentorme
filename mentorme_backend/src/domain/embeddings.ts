@@ -99,3 +99,38 @@ export async function updateTutorProfileEmbedding(
     data,
   });
 }
+
+export async function backfillTutorEmbeddings(
+  prisma: PrismaClient,
+  options: { batchSize?: number; skipIds?: string[] } = {}
+): Promise<{ total: number; succeeded: number; failed: number }> {
+  const batchSize = options.batchSize ?? 25;
+  const skipIds = options.skipIds ?? [];
+
+  const tutors = await prisma.tutorProfile.findMany({
+    where: skipIds.length ? { id: { notIn: skipIds } } : undefined,
+    select: { id: true },
+    orderBy: { createdAt: "asc" },
+  });
+
+  let succeeded = 0;
+  let failed = 0;
+
+  for (let i = 0; i < tutors.length; i += batchSize) {
+    const slice = tutors.slice(i, i + batchSize);
+    // Run each batch sequentially to avoid overloading embedding service
+    // while still limiting memory usage.
+    for (const tutor of slice) {
+      try {
+        await updateTutorProfileEmbedding(prisma, tutor.id);
+        succeeded += 1;
+      } catch (error) {
+        failed += 1;
+        // eslint-disable-next-line no-console
+        console.error(`Failed to update embedding for tutor ${tutor.id}`, error);
+      }
+    }
+  }
+
+  return { total: tutors.length, succeeded, failed };
+}

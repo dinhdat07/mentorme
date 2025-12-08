@@ -36,6 +36,12 @@ export type TutorWithRelations = TutorProfile & {
     district: string | null;
   }[];
   availabilities: TutorAvailability[];
+  user: {
+    id: string;
+    fullName: string;
+    email: string | null;
+    status: UserStatus;
+  };
 };
 
 export interface MatchedTutor {
@@ -151,11 +157,11 @@ function computeMatchingScore(params: {
   return (
     0.25 * params.subjectMatch +
     0.1 * params.gradeMatch +
-    0.15 * params.timeOverlapScore +
+    0.1 * params.timeOverlapScore +
     0.1 * params.priceScore +
     0.1 * params.locationScore +
-    0.15 * trustComponent +
-    0.15 * semanticComponent
+    0.1 * trustComponent +
+    0.25 * semanticComponent
   );
 }
 
@@ -177,24 +183,37 @@ export async function matchTutors(
     subjectId: request.subjectId,
   };
 
-  const where: Prisma.TutorProfileWhereInput = {
+  const baseWhere: Prisma.TutorProfileWhereInput = {
     classes: { some: classFilter },
     user: { status: UserStatus.ACTIVE },
   };
+  let where: Prisma.TutorProfileWhereInput = { ...baseWhere };
   if (request.city) {
-    where.city = request.city;
+    where.city = { equals: request.city, mode: "insensitive" };
   }
   if (request.district) {
-    where.district = request.district;
+    where.district = { equals: request.district, mode: "insensitive" };
   }
 
-  const tutors = await prisma.tutorProfile.findMany({
+  let tutors = await prisma.tutorProfile.findMany({
     where,
     include: {
       classes: { where: classFilter },
       availabilities: true,
+      user: true,
     },
   });
+  // Nếu lọc city/district mà không có kết quả, thử bỏ lọc vị trí để vẫn trả gợi ý.
+  if (tutors.length === 0 && (request.city || request.district)) {
+    tutors = await prisma.tutorProfile.findMany({
+      where: baseWhere,
+      include: {
+        classes: { where: classFilter },
+        availabilities: true,
+        user: true,
+      },
+    });
+  }
 
   const descriptionText = request.description?.trim();
   const requestEmbedding =

@@ -22,7 +22,7 @@ const matchingSchema = z.object({
   city: z.string().optional(),
   district: z.string().optional(),
   budgetPerHour: z.coerce.number().positive(),
-  desiredSlots: z.array(timeSlotSchema).nonempty(),
+  desiredSlots: z.array(timeSlotSchema).optional().default([]),
   description: z.string().optional(),
   limit: z.coerce.number().int().positive().max(50).optional(),
 });
