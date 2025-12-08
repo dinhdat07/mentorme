@@ -107,11 +107,15 @@ export async function backfillTutorEmbeddings(
   const batchSize = options.batchSize ?? 25;
   const skipIds = options.skipIds ?? [];
 
-  const tutors = await prisma.tutorProfile.findMany({
-    where: skipIds.length ? { id: { notIn: skipIds } } : undefined,
+  const args: Prisma.TutorProfileFindManyArgs = {
     select: { id: true },
     orderBy: { createdAt: "asc" },
-  });
+  };
+  if (skipIds.length) {
+    args.where = { id: { notIn: skipIds } };
+  }
+
+  const tutors = await prisma.tutorProfile.findMany(args);
 
   let succeeded = 0;
   let failed = 0;
