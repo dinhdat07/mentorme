@@ -9,6 +9,7 @@ import {
 } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { z } from "zod";
+import { VerificationStatus } from "@prisma/client"; // thêm ở đầu file
 
 const router = Router();
 
@@ -20,12 +21,16 @@ router.get("/tutors/pending", async (_req, res) => {
       where: {
         verified: false,
         user: { status: UserStatus.PENDING },
+        // chỉ lấy người đã submit CCCD và đang chờ duyệt
+        verification: { is: { status: VerificationStatus.PENDING } },
       },
       include: {
         user: true,
+        verification: true, // ✅ bắt buộc
       },
       orderBy: { createdAt: "asc" },
     });
+
     return res.json(tutors);
   } catch (error) {
     return res.status(500).json({ message: "Internal server error" });

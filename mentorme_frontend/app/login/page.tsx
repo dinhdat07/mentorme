@@ -30,14 +30,24 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const response = await login(formData.emailOrPhone, formData.password);
-      const role = response.user.role;
-      router.push(`/dashboard/${role === 'TUTOR' ? 'tutor' : role === 'ADMIN' ? 'admin' : 'student'}`);
-    } catch (err: any) {
-      setError(err.message || 'Login failed');
-    } finally {
-      setIsLoading(false);
-    }
+  const response = await login(formData.emailOrPhone, formData.password);
+
+  const role = response.user.role;
+
+  // Tutor chưa duyệt -> đi xác minh CCCD
+  const isTutor = role === 'TUTOR';
+  const notApproved = isTutor && (response.user.status !== 'ACTIVE' || !response.tutorProfile?.verified);
+
+  if (notApproved) {
+    router.replace('/tutors/verify');
+    return;
+  }
+
+  router.push(`/dashboard/${role === 'TUTOR' ? 'tutor' : role === 'ADMIN' ? 'admin' : 'student'}`);
+} catch (err: any) {
+  setError(err.message || 'Login failed');
+}
+
   };
 
   const handleGoogleSignIn = () => {

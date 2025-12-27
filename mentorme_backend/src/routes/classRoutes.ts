@@ -9,6 +9,9 @@ import {
   UserRole,
 } from "@prisma/client";
 import { z } from "zod";
+import { tutorApprovedGuard } from "../middleware/tutorApprovedGuard";
+import { onlyTutor } from "../middleware/onlyTutor";
+
 
 const router = Router();
 
@@ -73,7 +76,7 @@ const baseClassSchema = z.object({
   district: z.string().optional(),
 });
 
-router.post("/", authGuard([UserRole.TUTOR]), async (req, res) => {
+router.post("/", authGuard([UserRole.TUTOR]), tutorApprovedGuard(), async (req, res) => {
   try {
     const payload = baseClassSchema.parse(req.body);
 
@@ -118,7 +121,7 @@ router.post("/", authGuard([UserRole.TUTOR]), async (req, res) => {
 
 const updateSchema = baseClassSchema.partial();
 
-router.patch("/:id", authGuard([UserRole.TUTOR]), async (req, res) => {
+router.patch("/:id", authGuard([UserRole.TUTOR]), tutorApprovedGuard(), async (req, res) => {
   try {
     const payload = updateSchema.parse(req.body);
 
@@ -177,133 +180,148 @@ const statusSchema = z.object({
   status: z.nativeEnum(ClassStatus),
 });
 
-router.patch("/:id/status", authGuard([UserRole.TUTOR, UserRole.ADMIN]), async (req, res) => {
-  try {
-    const payload = statusSchema.parse(req.body);
-    const classId = req.params.id ?? "";
-    if (!classId) {
-      return res.status(400).json({ message: "Class id required" });
-    }
-    const classListing = await prisma.class.findUnique({
-      where: { id: classId },
-    });
+router.patch(
+  "/:id/status",
+  authGuard([UserRole.TUTOR, UserRole.ADMIN]),
+  onlyTutor(tutorApprovedGuard()),
+  async (req, res) => {
+    try {
+      const payload = statusSchema.parse(req.body);
+      const classId = req.params.id ?? "";
+      if (!classId) return res.status(400).json({ message: "Class id required" });
 
-    if (!classListing || classListing.isDeleted) {
-      return res.status(404).json({ message: "Class not found" });
-    }
-
-    if (req.user!.role === UserRole.TUTOR) {
-      const tutor = await prisma.tutorProfile.findUnique({
-        where: { userId: req.user!.id },
-      });
-      if (!tutor || tutor.id !== classListing.tutorId) {
-        return res.status(403).json({ message: "Forbidden" });
+      const classListing = await prisma.class.findUnique({ where: { id: classId } });
+      if (!classListing || classListing.isDeleted) {
+        return res.status(404).json({ message: "Class not found" });
       }
-    }
 
-    const updated = await prisma.class.update({
-      where: { id: classListing.id },
-      data: { status: payload.status },
-    });
+      // Nếu là tutor thì phải là owner
+      if (req.user!.role === UserRole.TUTOR) {
+        const tutor = await prisma.tutorProfile.findUnique({
+          where: { userId: req.user!.id },
+        });
+        if (!tutor || tutor.id !== classListing.tutorId) {
+          return res.status(403).json({ message: "Forbidden" });
+        }
+      }
+      // Admin: không cần check owner
 
-    return res.json(updated);
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({ message: "Invalid payload", issues: error.issues });
+      const updated = await prisma.class.update({
+        where: { id: classListing.id },
+        data: { status: payload.status },
+      });
+
+      return res.json(updated);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid payload", issues: error.issues });
+      }
+      return res.status(500).json({ message: "Internal server error" });
     }
-    return res.status(500).json({ message: "Internal server error" });
   }
-});
+);
 
-router.delete("/:id", authGuard([UserRole.TUTOR, UserRole.ADMIN]), async (req, res) => {
-  try {
-    const classId = req.params.id ?? "";
-    if (!classId) {
-      return res.status(400).json({ message: "Class id required" });
-    }
-    const classListing = await prisma.class.findUnique({
-      where: { id: classId },
-    });
-
-    if (!classListing || classListing.isDeleted) {
-      return res.status(404).json({ message: "Class not found" });
-    }
-
-    if (classListing.status !== ClassStatus.ARCHIVED) {
-      return res.status(400).json({ message: "Class must be archived before deletion" });
-    }
-
-    const activeBookings = await prisma.booking.count({
-      where: {
-        classId: classListing.id,
-        status: { in: [BookingStatus.PENDING, BookingStatus.CONFIRMED, BookingStatus.TRIAL] },
-      },
-    });
-
-    if (activeBookings > 0) {
-      return res.status(400).json({ message: "Active bookings exist" });
-    }
-
-    if (req.user!.role === UserRole.TUTOR) {
-      const tutor = await prisma.tutorProfile.findUnique({
-        where: { userId: req.user!.id },
-      });
-      if (!tutor || tutor.id !== classListing.tutorId) {
-        return res.status(403).json({ message: "Forbidden" });
+router.delete(
+  "/:id",
+  authGuard([UserRole.TUTOR, UserRole.ADMIN]),
+  onlyTutor(tutorApprovedGuard()),
+  async (req, res) => {
+    try {
+      const classId = req.params.id ?? "";
+      if (!classId) {
+        return res.status(400).json({ message: "Class id required" });
       }
-    }
 
-    await prisma.class.update({
-      where: { id: classListing.id },
-      data: { isDeleted: true },
-    });
-
-    return res.json({ message: "Class deleted" });
-  } catch (error) {
-    return res.status(500).json({ message: "Internal server error" });
-  }
-});
-
-router.get("/:id/students", authGuard([UserRole.TUTOR, UserRole.ADMIN]), async (req, res) => {
-  try {
-    const classId = req.params.id ?? "";
-    if (!classId) {
-      return res.status(400).json({ message: "Class id required" });
-    }
-    const classListing = await prisma.class.findUnique({
-      where: { id: classId },
-    });
-
-    if (!classListing) {
-      return res.status(404).json({ message: "Class not found" });
-    }
-
-    if (req.user!.role === UserRole.TUTOR) {
-      const tutor = await prisma.tutorProfile.findUnique({
-        where: { userId: req.user!.id },
+      const classListing = await prisma.class.findUnique({
+        where: { id: classId },
       });
-      if (!tutor || tutor.id !== classListing.tutorId) {
-        return res.status(403).json({ message: "Forbidden" });
-      }
-    }
 
-    const students = await prisma.booking.findMany({
-      where: {
-        classId: classListing.id,
-        status: {
-          in: [BookingStatus.CONFIRMED, BookingStatus.TRIAL, BookingStatus.COMPLETED],
+      if (!classListing || classListing.isDeleted) {
+        return res.status(404).json({ message: "Class not found" });
+      }
+
+      if (classListing.status !== ClassStatus.ARCHIVED) {
+        return res.status(400).json({ message: "Class must be archived before deletion" });
+      }
+
+      const activeBookings = await prisma.booking.count({
+        where: {
+          classId: classListing.id,
+          status: { in: [BookingStatus.PENDING, BookingStatus.CONFIRMED, BookingStatus.TRIAL] },
         },
-      },
-      include: {
-        student: true,
-      },
-    });
+      });
 
-    return res.json(students);
-  } catch (error) {
-    return res.status(500).json({ message: "Internal server error" });
+      if (activeBookings > 0) {
+        return res.status(400).json({ message: "Active bookings exist" });
+      }
+
+      // Tutor: phải là owner. Admin: bỏ qua.
+      if (req.user!.role === UserRole.TUTOR) {
+        const tutor = await prisma.tutorProfile.findUnique({
+          where: { userId: req.user!.id },
+        });
+        if (!tutor || tutor.id !== classListing.tutorId) {
+          return res.status(403).json({ message: "Forbidden" });
+        }
+      }
+
+      await prisma.class.update({
+        where: { id: classListing.id },
+        data: { isDeleted: true },
+      });
+
+      return res.json({ message: "Class deleted" });
+    } catch (error) {
+      return res.status(500).json({ message: "Internal server error" });
+    }
   }
-});
+);
+
+
+router.get(
+  "/:id/students",
+  authGuard([UserRole.TUTOR, UserRole.ADMIN]),
+  onlyTutor(tutorApprovedGuard()),
+  async (req, res) => {
+    try {
+      const classId = req.params.id ?? "";
+      if (!classId) {
+        return res.status(400).json({ message: "Class id required" });
+      }
+
+      const classListing = await prisma.class.findUnique({
+        where: { id: classId },
+      });
+
+      if (!classListing) {
+        return res.status(404).json({ message: "Class not found" });
+      }
+
+      // Tutor: phải là owner. Admin: bỏ qua.
+      if (req.user!.role === UserRole.TUTOR) {
+        const tutor = await prisma.tutorProfile.findUnique({
+          where: { userId: req.user!.id },
+        });
+        if (!tutor || tutor.id !== classListing.tutorId) {
+          return res.status(403).json({ message: "Forbidden" });
+        }
+      }
+
+      const students = await prisma.booking.findMany({
+        where: {
+          classId: classListing.id,
+          status: { in: [BookingStatus.CONFIRMED, BookingStatus.TRIAL, BookingStatus.COMPLETED] },
+        },
+        include: { student: true },
+      });
+
+      return res.json(students);
+    } catch (error) {
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  }
+);
+
 
 router.get("/:id", async (req, res) => {
   try {

@@ -12,6 +12,13 @@ export interface AuthState {
   isAuthenticated: boolean;
 }
 
+type MeResponse = {
+  user: User;
+  studentProfile?: StudentProfile | null;
+  tutorProfile?: TutorProfile | null;
+};
+
+
 export const useAuth = () => {
   const [state, setState] = useState<AuthState>({
     user: null,
@@ -43,7 +50,7 @@ export const useAuth = () => {
       setState((prev) => ({ ...prev, isLoading: true }));
 
       try {
-        const response = await apiClient.get<AuthResponse>('/api/auth/me');
+        const response = await apiClient.get<MeResponse>('/api/auth/me');
         if (cancelled) return;
         setState({
           user: response.user,
@@ -83,51 +90,57 @@ export const useAuth = () => {
     };
   }, []);
 
-  const register = useCallback(
-    async (fullName: string, email: string, phone: string, password: string, role: 'STUDENT' | 'TUTOR') => {
-      try {
-        const response = await apiClient.post<AuthResponse>('/api/auth/register', {
-          fullName,
-          email,
-          phone,
-          password,
-          role,
-        });
-        setToken(response.accessToken);
-        setState({
-          user: response.user,
-          studentProfile: response.studentProfile || null,
-          tutorProfile: response.tutorProfile || null,
-          isLoading: false,
-          isAuthenticated: true,
-        });
-        return response;
-      } catch (error) {
-        throw error;
-      }
-    },
-    []
-  );
+const register = useCallback(
+  async (fullName: string, email: string, phone: string, password: string, role: 'STUDENT' | 'TUTOR') => {
+    const auth = await apiClient.post<{ user: User; accessToken: string }>('/api/auth/register', {
+      fullName,
+      email,
+      phone,
+      password,
+      role,
+    });
 
-  const login = useCallback(async (emailOrPhone: string, password: string) => {
-    try {
-      const response = await apiClient.post<AuthResponse>('/api/auth/login', {
-        emailOrPhone,
-        password,
-      });
-      setToken(response.accessToken);
-      setState({
-        user: response.user,
-        studentProfile: response.studentProfile || null,
-        tutorProfile: response.tutorProfile || null,
-        isLoading: false,
-        isAuthenticated: true,
-      });
-      return response;
-    } catch (error) {
-      throw error;
-    }
-  }, []);
+    setToken(auth.accessToken);
+
+    // Lấy hồ sơ đầy đủ (có tutorProfile.verified)
+    const me = await apiClient.get<MeResponse>('/api/auth/me');
+
+    setState({
+      user: me.user,
+      studentProfile: me.studentProfile || null,
+      tutorProfile: me.tutorProfile || null,
+      isLoading: false,
+      isAuthenticated: true,
+    });
+
+    // trả về để page quyết định redirect
+    return { accessToken: auth.accessToken, ...me };
+  },
+  []
+);
+
+
+const login = useCallback(async (emailOrPhone: string, password: string) => {
+  const auth = await apiClient.post<{ user: User; accessToken: string }>('/api/auth/login', {
+    emailOrPhone,
+    password,
+  });
+
+  setToken(auth.accessToken);
+
+  const me = await apiClient.get<MeResponse>('/api/auth/me');
+
+  setState({
+    user: me.user,
+    studentProfile: me.studentProfile || null,
+    tutorProfile: me.tutorProfile || null,
+    isLoading: false,
+    isAuthenticated: true,
+  });
+
+  return { accessToken: auth.accessToken, ...me };
+}, []);
+
 
   const logout = useCallback(() => {
     clearToken();

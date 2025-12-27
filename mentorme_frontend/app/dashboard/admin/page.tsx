@@ -162,6 +162,9 @@ export default function AdminDashboard() {
   const { tutors: pendingTutors, isLoading: tutorsLoading, mutate: mutateTutors } = usePendingTutors();
   const [tab, setTab] = useState('pending-tutors');
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [selectedTutor, setSelectedTutor] = useState<any | null>(null);
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000';
+
 
   const { data: bookings, isLoading: bookingsLoading } = useSWR(
     tab === 'bookings' ? '/api/admin/bookings' : null,
@@ -318,24 +321,33 @@ export default function AdminDashboard() {
                         </p>
                       </div>
                     </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleVerifyTutor(tutor.id, true)}
-                        disabled={processingId === tutor.id}
-                        className="flex-1 px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white rounded-lg font-medium transition-all duration-300 disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-green-500/30"
-                      >
-                        <CheckCircle size={16} />
-                        {processingId === tutor.id ? t.processing : t.approve}
-                      </button>
-                      <button
-                        onClick={() => handleVerifyTutor(tutor.id, false)}
-                        disabled={processingId === tutor.id}
-                        className="flex-1 px-4 py-2 bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white rounded-lg font-medium transition-all duration-300 disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-red-500/30"
-                      >
-                        <XCircle size={16} />
-                        {processingId === tutor.id ? t.processing : t.reject}
-                      </button>
-                    </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setSelectedTutor(tutor)}
+                          className="px-4 py-2 rounded-lg bg-white/10 border border-white/20 text-white hover:bg-white/15 transition"
+                        >
+                          Xem
+                        </button>
+
+                        <button
+                          onClick={() => handleVerifyTutor(tutor.id, true)}
+                          disabled={processingId === tutor.id}
+                          className="flex-1 px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white rounded-lg font-medium transition-all duration-300 disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-green-500/30"
+                        >
+                          <CheckCircle size={16} />
+                          {processingId === tutor.id ? t.processing : t.approve}
+                        </button>
+
+                        <button
+                          onClick={() => handleVerifyTutor(tutor.id, false)}
+                          disabled={processingId === tutor.id}
+                          className="flex-1 px-4 py-2 bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white rounded-lg font-medium transition-all duration-300 disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-red-500/30"
+                        >
+                          <XCircle size={16} />
+                          {processingId === tutor.id ? t.processing : t.reject}
+                        </button>
+                      </div>
+
                   </div>
                 ))}
               </div>
@@ -467,6 +479,49 @@ export default function AdminDashboard() {
           </div>
         )}
       </div>
+      {selectedTutor && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+    <div className={`w-full max-w-4xl rounded-2xl p-6 relative ${styles.card}`}>
+      <button
+        onClick={() => setSelectedTutor(null)}
+        className={`absolute top-3 right-3 ${styles.textSecondary}`}
+      >
+        ✕
+      </button>
+
+      <h2 className={`text-xl font-semibold mb-4 ${styles.textPrimary}`}>Xem xác minh CCCD</h2>
+
+      {!selectedTutor.verification ? (
+        <p className={styles.textMuted}>Tutor này chưa nộp CCCD.</p>
+      ) : (
+        <>
+          <div className={`grid grid-cols-1 md:grid-cols-2 gap-2 text-sm mb-4 ${styles.textSecondary}`}>
+            <div><b>Họ tên:</b> {selectedTutor.verification.fullNameOnId ?? '-'}</div>
+            <div><b>CCCD:</b> {selectedTutor.verification.citizenIdNumber ?? '-'}</div>
+            <div><b>Ngày sinh:</b> {selectedTutor.verification.dob ? new Date(selectedTutor.verification.dob).toLocaleDateString() : '-'}</div>
+            <div><b>Địa chỉ:</b> {selectedTutor.verification.addressOnId ?? '-'}</div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <div className={`${styles.textMuted} text-sm mb-2`}>Mặt trước</div>
+              <img src={`${apiBase}${selectedTutor.verification.idFrontUrl}`} className="w-full rounded-lg border border-white/15" />
+            </div>
+            <div>
+              <div className={`${styles.textMuted} text-sm mb-2`}>Mặt sau</div>
+              <img src={`${apiBase}${selectedTutor.verification.idBackUrl}`} className="w-full rounded-lg border border-white/15" />
+            </div>
+            <div>
+              <div className={`${styles.textMuted} text-sm mb-2`}>Selfie</div>
+              <img src={`${apiBase}${selectedTutor.verification.selfieUrl}`} className="w-full rounded-lg border border-white/15" />
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  </div>
+)}
+
     </DashboardLayout>
   );
 }

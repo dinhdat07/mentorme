@@ -4,8 +4,93 @@ import { ClassStatus, Prisma, UserRole, UserStatus } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { z } from "zod";
 import { updateTutorProfileEmbedding } from "../domain/embeddings";
+import multer from "multer";
+import path from "path";
+import { VerificationStatus } from "@prisma/client";
+
 
 const router = Router();
+// lưu file local
+const upload = multer({
+  dest: path.join(process.cwd(), "uploads", "kyc"),
+  limits: { fileSize: 5 * 1024 * 1024 },
+});
+
+const submitKycSchema = z.object({
+  citizenIdNumber: z.string().min(9).max(20),
+  fullNameOnId: z.string().min(1),
+  dob: z.string().optional(),       // yyyy-mm-dd hoặc ISO
+  addressOnId: z.string().optional(),
+});
+
+// POST /api/tutors/verification/submit
+router.post(
+  "/verification/submit",
+  authGuard([UserRole.TUTOR]),
+  upload.fields([
+    { name: "idFront", maxCount: 1 },
+    { name: "idBack", maxCount: 1 },
+    { name: "selfie", maxCount: 1 },
+  ]),
+  async (req, res) => {
+    try {
+      const body = submitKycSchema.parse(req.body);
+
+      const tutor = await prisma.tutorProfile.findUnique({
+        where: { userId: req.user!.id },
+      });
+      if (!tutor) return res.status(404).json({ message: "Tutor profile not found" });
+
+      const files = req.files as Record<string, Express.Multer.File[] | undefined>;
+      const idFront = files?.idFront?.[0];
+      const idBack = files?.idBack?.[0];
+      const selfie = files?.selfie?.[0];
+
+      if (!idFront || !idBack || !selfie) {
+        return res.status(400).json({ message: "Missing files: idFront, idBack, selfie" });
+      }
+
+      const toUrl = (f: Express.Multer.File) => `/uploads/kyc/${f.filename}`;
+
+      const verification = await prisma.tutorVerification.upsert({
+        where: { tutorProfileId: tutor.id },
+        create: {
+          tutorProfileId: tutor.id,
+          status: VerificationStatus.PENDING,
+          citizenIdNumber: body.citizenIdNumber,
+          fullNameOnId: body.fullNameOnId,
+          dob: body.dob ? new Date(body.dob) : null,
+          addressOnId: body.addressOnId ?? null,
+          idFrontUrl: toUrl(idFront),
+          idBackUrl: toUrl(idBack),
+          selfieUrl: toUrl(selfie),
+        },
+        update: {
+          status: VerificationStatus.PENDING,
+          citizenIdNumber: body.citizenIdNumber,
+          fullNameOnId: body.fullNameOnId,
+          dob: body.dob ? new Date(body.dob) : null,
+          addressOnId: body.addressOnId ?? null,
+          idFrontUrl: toUrl(idFront),
+          idBackUrl: toUrl(idBack),
+          selfieUrl: toUrl(selfie),
+          rejectReason: null,
+          reviewedAt: null,
+          reviewedByAdminId: null,
+        },
+      });
+
+      // tutorProfile.verified vẫn false cho tới khi admin duyệt
+      return res.json({ message: "Submitted. Waiting for approval", verification });
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid payload", issues: err.issues });
+      }
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  }
+);
+
 
 router.get("/me", authGuard([UserRole.TUTOR]), async (req, res) => {
   try {
@@ -290,5 +375,80 @@ router.get("/:id", async (req, res) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 });
+
+const submitTutorVerificationSchema = z.object({
+  citizenIdNumber: z.string().min(9).max(20),
+  fullNameOnId: z.string().min(1),
+  dob: z.string().optional(),
+  addressOnId: z.string().optional(),
+});
+
+router.post(
+  "/verification/submit",
+  authGuard([UserRole.TUTOR]),
+  upload.fields([
+    { name: "idFront", maxCount: 1 },
+    { name: "idBack", maxCount: 1 },
+    { name: "selfie", maxCount: 1 },
+  ]),
+  async (req, res) => {
+    try {
+      const body = submitTutorVerificationSchema.parse(req.body);
+
+      const tutor = await prisma.tutorProfile.findUnique({
+        where: { userId: req.user!.id },
+      });
+      if (!tutor) return res.status(404).json({ message: "Tutor profile not found" });
+
+      const files = req.files as Record<string, Express.Multer.File[] | undefined>;
+      const idFront = files?.idFront?.[0];
+      const idBack = files?.idBack?.[0];
+      const selfie = files?.selfie?.[0];
+
+      if (!idFront || !idBack || !selfie) {
+        return res.status(400).json({ message: "Missing files: idFront, idBack, selfie" });
+      }
+
+      const toUrl = (f: Express.Multer.File) => `/uploads/kyc/${f.filename}`;
+
+      const verification = await prisma.tutorVerification.upsert({
+        where: { tutorProfileId: tutor.id },
+        create: {
+          tutorProfileId: tutor.id,
+          status: VerificationStatus.PENDING,
+          citizenIdNumber: body.citizenIdNumber,
+          fullNameOnId: body.fullNameOnId,
+          dob: body.dob ? new Date(body.dob) : null,
+          addressOnId: body.addressOnId ?? null,
+          idFrontUrl: toUrl(idFront),
+          idBackUrl: toUrl(idBack),
+          selfieUrl: toUrl(selfie),
+        },
+        update: {
+          status: VerificationStatus.PENDING,
+          citizenIdNumber: body.citizenIdNumber,
+          fullNameOnId: body.fullNameOnId,
+          dob: body.dob ? new Date(body.dob) : null,
+          addressOnId: body.addressOnId ?? null,
+          idFrontUrl: toUrl(idFront),
+          idBackUrl: toUrl(idBack),
+          selfieUrl: toUrl(selfie),
+          rejectReason: null,
+          reviewedAt: null,
+          reviewedByAdminId: null,
+        },
+      });
+
+      return res.json({ message: "Submitted. Waiting for approval", verification });
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid payload", issues: err.issues });
+      }
+      console.error(err);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  }
+);
+
 
 export default router;

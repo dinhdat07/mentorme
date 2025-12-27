@@ -32,8 +32,16 @@ export default function RegisterPage() {
     setIsLoading(true);
 
     try {
-      await register(formData.fullName, formData.email, formData.phone, formData.password, formData.role);
-      router.push(`/dashboard/${formData.role === 'TUTOR' ? 'tutor' : 'student'}`);
+      const result = await register(formData.fullName, formData.email, formData.phone, formData.password, formData.role);
+
+      const isTutor = result.user.role === 'TUTOR';
+      const notApproved = isTutor && (result.user.status !== 'ACTIVE' || !result.tutorProfile?.verified);
+
+      if (notApproved) {
+        router.replace('/tutors/verify'); // bạn tạo page này
+      } else {
+        router.push(`/dashboard/${formData.role === 'TUTOR' ? 'tutor' : 'student'}`);
+      }
     } catch (err: any) {
       setError(err.message || 'Registration failed');
     } finally {

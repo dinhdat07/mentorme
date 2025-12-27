@@ -10,8 +10,11 @@ import bookingRoutes from "./routes/bookingRoutes";
 import reviewRoutes from "./routes/reviewRoutes";
 import matchingRoutes from "./routes/matchingRoutes";
 import adminRoutes from "./routes/adminRoutes";
+import path from "path";
 
 const app = express();
+
+app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
 app.use(helmet());
 app.use(
