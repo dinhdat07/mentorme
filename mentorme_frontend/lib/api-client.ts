@@ -2,7 +2,8 @@
  * API Client with automatic Bearer token attachment
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000';
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4000";
 
 export interface ApiResponse<T> {
   data: T;
@@ -10,25 +11,25 @@ export interface ApiResponse<T> {
 }
 
 const getToken = (): string | null => {
-  if (typeof window !== 'undefined') {
-    return localStorage.getItem('accessToken');
+  if (typeof window !== "undefined") {
+    return localStorage.getItem("accessToken");
   }
   return null;
 };
 
 const setToken = (token: string) => {
-  if (typeof window !== 'undefined') {
-    localStorage.setItem('accessToken', token);
+  if (typeof window !== "undefined") {
+    localStorage.setItem("accessToken", token);
     // Notify listeners (same tab) that auth token changed
-    window.dispatchEvent(new Event('accessToken-changed'));
+    window.dispatchEvent(new Event("accessToken-changed"));
   }
 };
 
 const clearToken = () => {
-  if (typeof window !== 'undefined') {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('user');
-    window.dispatchEvent(new Event('accessToken-changed'));
+  if (typeof window !== "undefined") {
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("user");
+    window.dispatchEvent(new Event("accessToken-changed"));
   }
 };
 
@@ -38,23 +39,26 @@ export class ApiError<T = any> extends Error {
 
   constructor(message: string, status: number, data?: T) {
     super(message);
-    this.name = 'ApiError';
+    this.name = "ApiError";
     this.status = status;
     this.data = data;
   }
 }
 
-async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+async function apiCall<T>(
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
   const token = getToken();
 
   const headers: HeadersInit = {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
     ...options.headers,
   };
 
   if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+    headers["Authorization"] = `Bearer ${token}`;
   }
 
   const response = await fetch(url, {
@@ -68,18 +72,19 @@ async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<
     // Clear token and redirect on auth failure
     if (response.status === 401) {
       clearToken();
-      if (typeof window !== 'undefined') {
-        window.location.href = '/login';
+      if (typeof window !== "undefined") {
+        window.location.href = "/login";
       }
     }
 
     let message = (data && data.message) || `API Error (${response.status})`;
     if (response.status === 401) {
-      message = data?.message || 'Bạn chưa đăng nhập hoặc phiên đã hết hạn';
+      message = data?.message || "Bạn chưa đăng nhập hoặc phiên đã hết hạn";
     } else if (response.status === 403) {
-      message = data?.message || 'Bạn chưa được phê duyệt để thực hiện hành động này';
+      message =
+        data?.message || "Bạn chưa được phê duyệt để thực hiện hành động này";
     } else if (response.status === 400) {
-      message = data?.message || 'Yêu cầu không hợp lệ';
+      message = data?.message || "Yêu cầu không hợp lệ";
     }
     throw new ApiError(message, response.status, data || undefined);
   }
@@ -88,23 +93,26 @@ async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<
 }
 
 export const apiClient = {
-  get: <T,>(endpoint: string) =>
-    apiCall<T>(endpoint, { method: 'GET' }),
-  
-  post: <T,>(endpoint: string, body: any) =>
+  get: <T>(endpoint: string) => apiCall<T>(endpoint, { method: "GET" }),
+
+  post: <T>(endpoint: string, body: any) =>
     apiCall<T>(endpoint, {
-      method: 'POST',
+      method: "POST",
       body: JSON.stringify(body),
     }),
-  
-  patch: <T,>(endpoint: string, body: any) =>
+  put: <T>(endpoint: string, body: any) =>
     apiCall<T>(endpoint, {
-      method: 'PATCH',
+      method: "PUT",
       body: JSON.stringify(body),
     }),
-  
-  delete: <T,>(endpoint: string) =>
-    apiCall<T>(endpoint, { method: 'DELETE' }),
+
+  patch: <T>(endpoint: string, body: any) =>
+    apiCall<T>(endpoint, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+
+  delete: <T>(endpoint: string) => apiCall<T>(endpoint, { method: "DELETE" }),
 };
 
 export { getToken, setToken, clearToken };

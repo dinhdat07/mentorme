@@ -16,7 +16,15 @@ describe("Tutor profile and class routes", () => {
   });
 
   test("updates tutor profile", async () => {
-    const tutorProfile = { id: "tutor-1", userId: "user-tutor" } as any;
+    const tutorProfile = {
+      id: "tutor-1",
+      userId: "user-tutor",
+      verificationStatus: "VERIFIED",
+      bio: "",
+      education: "",
+      certificates: [],
+    } as any;
+    mockPrisma.tutorProfile.findUnique.mockResolvedValue(tutorProfile);
     mockPrisma.tutorProfile.update.mockResolvedValue({ ...tutorProfile, bio: "Updated" });
 
     const res = await request(app)

@@ -10,6 +10,10 @@ import bookingRoutes from "./routes/bookingRoutes";
 import reviewRoutes from "./routes/reviewRoutes";
 import matchingRoutes from "./routes/matchingRoutes";
 import adminRoutes from "./routes/adminRoutes";
+import calendarRoutes from "./routes/calendarRoutes";
+import sessionRoutes from "./routes/sessionRoutes";
+import notificationRoutes from "./routes/notificationRoutes";
+import paymentRoutes from "./routes/paymentRoutes";
 
 const app = express();
 
@@ -34,5 +38,9 @@ app.use("/api/bookings", bookingRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/matching", matchingRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/calendar", calendarRoutes);
+app.use("/api/sessions", sessionRoutes);
+app.use("/api/notifications", notificationRoutes);
+app.use("/api", paymentRoutes);
 
 export default app;

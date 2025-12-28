@@ -1,0 +1,68 @@
+-- DropIndex
+DROP INDEX "LedgerEntry_classId_createdAt_idx";
+
+-- DropIndex
+DROP INDEX "Notification_userId_createdAt_idx";
+
+-- DropIndex
+DROP INDEX "TutorProfile_verificationStatus_idx";
+
+-- AlterTable
+ALTER TABLE "ClassSchedule" ALTER COLUMN "id" DROP DEFAULT,
+ALTER COLUMN "createdAt" SET DATA TYPE TIMESTAMP(3),
+ALTER COLUMN "updatedAt" DROP DEFAULT,
+ALTER COLUMN "updatedAt" SET DATA TYPE TIMESTAMP(3);
+
+-- AlterTable
+ALTER TABLE "EscrowAccount" ALTER COLUMN "id" DROP DEFAULT,
+ALTER COLUMN "createdAt" SET DATA TYPE TIMESTAMP(3),
+ALTER COLUMN "updatedAt" DROP DEFAULT,
+ALTER COLUMN "updatedAt" SET DATA TYPE TIMESTAMP(3);
+
+-- AlterTable
+ALTER TABLE "LedgerEntry" ALTER COLUMN "id" DROP DEFAULT,
+ALTER COLUMN "createdAt" SET DATA TYPE TIMESTAMP(3);
+
+-- AlterTable
+ALTER TABLE "Notification" ALTER COLUMN "id" DROP DEFAULT,
+ALTER COLUMN "readAt" SET DATA TYPE TIMESTAMP(3),
+ALTER COLUMN "createdAt" SET DATA TYPE TIMESTAMP(3);
+
+-- AlterTable
+ALTER TABLE "PaymentIntent" ALTER COLUMN "id" DROP DEFAULT,
+ALTER COLUMN "createdAt" SET DATA TYPE TIMESTAMP(3),
+ALTER COLUMN "updatedAt" DROP DEFAULT,
+ALTER COLUMN "updatedAt" SET DATA TYPE TIMESTAMP(3);
+
+-- AlterTable
+ALTER TABLE "ReminderLog" ALTER COLUMN "id" DROP DEFAULT,
+ALTER COLUMN "sentAt" SET DATA TYPE TIMESTAMP(3);
+
+-- AlterTable
+ALTER TABLE "Session" ALTER COLUMN "id" DROP DEFAULT,
+ALTER COLUMN "scheduledStartAt" SET DATA TYPE TIMESTAMP(3),
+ALTER COLUMN "scheduledEndAt" SET DATA TYPE TIMESTAMP(3),
+ALTER COLUMN "disputeFlaggedAt" SET DATA TYPE TIMESTAMP(3),
+ALTER COLUMN "createdAt" SET DATA TYPE TIMESTAMP(3),
+ALTER COLUMN "updatedAt" DROP DEFAULT,
+ALTER COLUMN "updatedAt" SET DATA TYPE TIMESTAMP(3),
+ALTER COLUMN "tutorStartConfirmedAt" SET DATA TYPE TIMESTAMP(3),
+ALTER COLUMN "studentStartConfirmedAt" SET DATA TYPE TIMESTAMP(3),
+ALTER COLUMN "tutorCompleteConfirmedAt" SET DATA TYPE TIMESTAMP(3),
+ALTER COLUMN "studentCompleteConfirmedAt" SET DATA TYPE TIMESTAMP(3),
+ALTER COLUMN "startedAt" SET DATA TYPE TIMESTAMP(3),
+ALTER COLUMN "completedAt" SET DATA TYPE TIMESTAMP(3);
+
+-- AlterTable
+ALTER TABLE "TutorUnavailability" ALTER COLUMN "id" DROP DEFAULT,
+ALTER COLUMN "startAt" SET DATA TYPE TIMESTAMP(3),
+ALTER COLUMN "endAt" SET DATA TYPE TIMESTAMP(3),
+ALTER COLUMN "createdAt" SET DATA TYPE TIMESTAMP(3),
+ALTER COLUMN "updatedAt" DROP DEFAULT,
+ALTER COLUMN "updatedAt" SET DATA TYPE TIMESTAMP(3);
+
+-- CreateIndex
+CREATE INDEX "LedgerEntry_classId_createdAt_idx" ON "LedgerEntry"("classId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "Notification_userId_createdAt_idx" ON "Notification"("userId", "createdAt");

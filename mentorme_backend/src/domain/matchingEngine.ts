@@ -6,8 +6,18 @@ import {
   TutorAvailability,
   TutorProfile,
   UserStatus,
+  VerificationStatus,
 } from "@prisma/client";
 import { cosineSimilarity, generateEmbedding } from "./embeddings";
+import { maskNationalId, sanitizeTutorForPublic } from "../utils/tutorSanitizer";
+
+const VS =
+  VerificationStatus ?? {
+    UNVERIFIED: "UNVERIFIED",
+    PENDING: "PENDING",
+    VERIFIED: "VERIFIED",
+    REJECTED: "REJECTED",
+  };
 
 export interface TimeSlot {
   dayOfWeek: number;
@@ -157,10 +167,10 @@ function computeMatchingScore(params: {
   return (
     0.25 * params.subjectMatch +
     0.1 * params.gradeMatch +
-    0.1 * params.timeOverlapScore +
+    0.15 * params.timeOverlapScore +
     0.1 * params.priceScore +
     0.1 * params.locationScore +
-    0.1 * trustComponent +
+    0.15 * trustComponent +
     0.25 * semanticComponent
   );
 }
@@ -186,6 +196,7 @@ export async function matchTutors(
   const baseWhere: Prisma.TutorProfileWhereInput = {
     classes: { some: classFilter },
     user: { status: UserStatus.ACTIVE },
+    verificationStatus: VS.VERIFIED as any,
   };
   let where: Prisma.TutorProfileWhereInput = { ...baseWhere };
   if (request.city) {
@@ -221,7 +232,11 @@ export async function matchTutors(
       ? await generateEmbedding(descriptionText)
       : null;
 
-  const results: MatchedTutor[] = tutors.map((tutor) => {
+  const verifiedTutors = tutors.filter(
+    (tutor) => tutor.verificationStatus === VS.VERIFIED
+  );
+
+  const results: MatchedTutor[] = verifiedTutors.map((tutor) => {
     const subjectMatch = tutor.classes.some((cls) => cls.subjectId === request.subjectId) ? 1 : 0;
     const gradeMatch =
       tutor.classes.some((cls) =>
@@ -263,7 +278,11 @@ export async function matchTutors(
     if (locationScore >= 0.7) reasons.push("Location preference matched");
     if (semanticScore > 0.6) reasons.push("Profile aligns with description");
 
-    return { tutor, score, reasons };
+    return {
+      tutor: sanitizeTutorForPublic(tutor, { maskNationalId }),
+      score,
+      reasons,
+    };
   });
 
   return results.sort((a, b) => b.score - a.score).slice(0, limit);

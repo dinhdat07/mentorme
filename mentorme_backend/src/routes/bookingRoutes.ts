@@ -7,7 +7,12 @@ import {
   CancelledBy,
   ClassStatus,
   UserRole,
+  VerificationStatus,
 } from "@prisma/client";
+
+const VS = VerificationStatus ?? {
+  VERIFIED: "VERIFIED",
+};
 import { z } from "zod";
 import { recalculateTutorStats } from "../services/tutorStats";
 

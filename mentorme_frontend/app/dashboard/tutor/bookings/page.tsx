@@ -1,10 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import {
+  CheckCircle,
+  XCircle,
+  Clock,
+  MessageSquare,
+  Calendar,
+} from "lucide-react";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { useBookings } from "@/hooks/useBookings";
 import { apiClient } from "@/lib/api-client";
-import { CheckCircle, XCircle, Clock, MessageSquare } from "lucide-react";
 import { useUISettings } from "@/components/ui-settings-context";
 import { ApiError } from "@/lib/api-client";
 
@@ -181,6 +187,63 @@ export default function TutorBookingsPage() {
     CANCELLED: bookings.filter((b) => b.status === "CANCELLED"),
   };
 
+  const renderStudentNote = (rawNote: string) => {
+    let parsedData;
+    try {
+      parsedData = JSON.parse(rawNote);
+    } catch (e) {
+      // Nếu không phải JSON (dữ liệu cũ), hiển thị như text thường
+      return <span>{rawNote}</span>;
+    }
+
+    const { preferredSlot, note } = parsedData || {};
+
+    // Mảng tên thứ trong tuần (0 = CN, 1 = T2...)
+    const days =
+      language === "vi"
+        ? [
+            "Chủ Nhật",
+            "Thứ Hai",
+            "Thứ Ba",
+            "Thứ Tư",
+            "Thứ Năm",
+            "Thứ Sáu",
+            "Thứ Bảy",
+          ]
+        : [
+            "Sunday",
+            "Monday",
+            "Tuesday",
+            "Wednesday",
+            "Thursday",
+            "Friday",
+            "Saturday",
+          ];
+
+    return (
+      <div className="flex-1">
+        {preferredSlot && (
+          <div className="flex items-center gap-2 text-sm font-semibold mb-1">
+            <Calendar className="w-4 h-4 text-purple-500" />
+            <span
+              className={
+                theme === "dark" ? "text-purple-300" : "text-purple-700"
+              }
+            >
+              {days[preferredSlot.dayOfWeek] ||
+                "Day " + preferredSlot.dayOfWeek}
+              : {preferredSlot.startTime} - {preferredSlot.endTime}
+            </span>
+          </div>
+        )}
+        {note && <div className="text-sm opacity-90 italic">"{note}"</div>}
+        {!preferredSlot && !note && (
+          <span className="italic opacity-75">{t.studentNote}</span>
+        )}
+      </div>
+    );
+  };
+
   return (
     <DashboardLayout requiredRole={["TUTOR"]}>
       <div className="p-8 transition-colors duration-300 space-y-8">
@@ -256,16 +319,7 @@ export default function TutorBookingsPage() {
                           PENDING
                         </span>
                       </div>
-                      {booking.noteFromStudent && (
-                        <div
-                          className={`text-sm mb-4 p-3 rounded-lg flex items-start gap-2 ${styles.note}`}
-                        >
-                          <MessageSquare className="w-4 h-4 mt-0.5 flex-shrink-0 text-purple-500" />
-                          <span>
-                            {t.studentNote}: {booking.noteFromStudent}
-                          </span>
-                        </div>
-                      )}
+                      {renderStudentNote(booking.noteFromStudent)}
                       <div className="flex gap-3">
                         <button
                           onClick={() => handleConfirmBooking(booking.id)}

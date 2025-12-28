@@ -104,6 +104,7 @@ export default function BookClassPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [issues, setIssues] = useState<string[]>([]);
+
   const [formData, setFormData] = useState({
     isTrial: false,
     requestedHoursPerWeek: 2,

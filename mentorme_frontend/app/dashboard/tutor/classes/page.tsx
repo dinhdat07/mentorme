@@ -24,6 +24,7 @@ const translations: Record<Language, any> = {
     noneDraft: 'Chưa có bản nháp',
     noneArchived: 'Chưa có lớp lưu trữ',
     edit: 'Chỉnh sửa',
+    schedule: 'Lịch học',
     archive: 'Lưu trữ',
     publish: 'Đăng',
     view: 'Xem',
@@ -40,6 +41,7 @@ const translations: Record<Language, any> = {
     noneDraft: 'No draft classes',
     noneArchived: 'No archived classes',
     edit: 'Edit',
+    schedule: 'Schedule',
     archive: 'Archive',
     publish: 'Publish',
     view: 'View',
@@ -77,6 +79,35 @@ export default function TutorClassesPage() {
   const { theme, language } = useUISettings();
   const t = translations[language];
   const styles = themeStyles[theme];
+  const buttonTone = (variant: 'edit' | 'archive' | 'schedule' | 'publish') => {
+    const base = 'inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 border shadow-sm';
+    if (variant === 'edit') {
+      return `${base} ${
+        theme === 'dark'
+          ? 'bg-purple-500/25 text-purple-100 border-purple-300/40 hover:bg-purple-500/35'
+          : 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100'
+      }`;
+    }
+    if (variant === 'archive') {
+      return `${base} ${
+        theme === 'dark'
+          ? 'bg-red-500/20 text-red-100 border-red-300/40 hover:bg-red-500/30'
+          : 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
+      }`;
+    }
+    if (variant === 'publish') {
+      return `${base} ${
+        theme === 'dark'
+          ? 'bg-green-500/20 text-green-100 border-green-300/40 hover:bg-green-500/30'
+          : 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
+      }`;
+    }
+    return `${base} ${
+      theme === 'dark'
+        ? 'bg-blue-500/20 text-blue-100 border-blue-300/40 hover:bg-blue-500/30'
+        : 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
+    }`;
+  };
 
   const handleUpdateStatus = async (classId: string, newStatus: 'PUBLISHED' | 'ARCHIVED' | 'DRAFT') => {
     try {
@@ -147,7 +178,7 @@ export default function TutorClassesPage() {
                           <div className="flex gap-2 ml-4">
                             <Link
                               href={`/dashboard/tutor/classes/${cls.id}`}
-                              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-300 border bg-purple-500/20 hover:bg-purple-500/30 text-purple-300"
+                              className={buttonTone('edit')}
                             >
                               <Edit size={16} />
                               {t.edit}
@@ -155,11 +186,17 @@ export default function TutorClassesPage() {
                             <button
                               onClick={() => handleUpdateStatus(cls.id, 'ARCHIVED')}
                               disabled={processingId === cls.id}
-                              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-300 border bg-red-500/20 hover:bg-red-500/30 text-red-300 disabled:opacity-50"
+                              className={`${buttonTone('archive')} disabled:opacity-50`}
                             >
                               <Archive size={16} />
                               {processingId === cls.id ? '...' : t.archive}
                             </button>
+                            <Link
+                              href={`/dashboard/tutor/classes/${cls.id}/schedule`}
+                              className={buttonTone('schedule')}
+                            >
+                              {t.schedule}
+                            </Link>
                           </div>
                         </div>
                       </div>
@@ -199,7 +236,7 @@ export default function TutorClassesPage() {
                           <div className="flex gap-2 ml-4">
                             <Link
                               href={`/dashboard/tutor/classes/${cls.id}`}
-                              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-300 border bg-purple-500/20 hover:bg-purple-500/30 text-purple-300"
+                              className={buttonTone('edit')}
                             >
                               <Edit size={16} />
                               {t.edit}
@@ -207,11 +244,17 @@ export default function TutorClassesPage() {
                             <button
                               onClick={() => handleUpdateStatus(cls.id, 'PUBLISHED')}
                               disabled={processingId === cls.id}
-                              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-300 border bg-green-500/20 hover:bg-green-500/30 text-green-300 disabled:opacity-50"
+                              className={`${buttonTone('publish')} disabled:opacity-50`}
                             >
                               <CheckCircle size={16} />
                               {processingId === cls.id ? '...' : t.publish}
                             </button>
+                            <Link
+                              href={`/dashboard/tutor/classes/${cls.id}/schedule`}
+                              className={buttonTone('schedule')}
+                            >
+                              {t.schedule}
+                            </Link>
                           </div>
                         </div>
                       </div>

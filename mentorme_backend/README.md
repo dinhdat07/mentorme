@@ -67,6 +67,34 @@ The API listens on `http://localhost:4000` by default. A basic health probe is a
 
 Use any REST client (Insomnia, Postman, VS Code `rest` files) to call the endpoints. Enable an `Authorization: Bearer <token>` header when exercising protected routes such as students/tutors CRUD.
 
+## Verification API (Phase 1)
+
+- Tutor:
+  - `GET /api/tutors/me/verification` – view status + masked CCCD and submitted documents.
+  - `PUT /api/tutors/me/verification` – submit/resubmit; sets status to `PENDING`. Duplicate CCCD returns `409 Conflict`.
+- Admin (role `ADMIN` only):
+  - `GET /api/admin/tutor-verifications?status=PENDING|VERIFIED|REJECTED` – list requests (CCCD masked).
+- `PATCH /api/admin/tutor-verifications/:id/approve` – approve (status → VERIFIED).
+- `PATCH /api/admin/tutor-verifications/:id/reject` – reject with optional note.
+- Public surfaces (search/matching/class detail) only include `VERIFIED` tutors and never expose CCCD or document URLs.
+
+## Scheduling API (Phase 2)
+
+- Tutor availability: `GET/PUT /api/tutors/me/availability`, `GET/PUT /api/tutors/me/unavailability`
+- Class schedule: `POST /api/classes/:id/schedule` (recurrence or explicit sessions, conflict-checked), `GET /api/classes/:id/schedule`
+- Calendars: `GET /api/calendar/tutor`, `GET /api/calendar/student` (upcoming sessions)
+- Session statuses currently: `SCHEDULED`, `CANCELLED`, `MISSED` (start/complete flow deferred to Phase 3).
+
+## Sessions & Payments (Phase 3 & 4A/4B)
+
+- Session lifecycle: `PATCH /api/sessions/:id/start`, `PATCH /api/sessions/:id/complete` (both tutor & student must confirm). Disputed sessions are flagged after long one-sided confirmations.
+- Notifications: `GET /api/notifications/me`, `PATCH /api/notifications/:id/read` plus automated reminders at T-24h/T-1h (see `npm run reminders:run`).
+- Payments (mock escrow):
+  - Create intent: `POST /api/classes/:id/payments/intents` (student/admin; requires schedule & booking)
+  - Confirm mock payment: `POST /api/payments/:intentId/confirm`
+  - Summary & ledger: `GET /api/classes/:id/payments/summary`
+  - Escrow auto-releases on session completion (90% tutor / 10% platform); insufficient escrow notifies payer. Cancelling a class (`PATCH /api/classes/:id/cancel`) refunds remaining balance.
+
 ## Deploying to AWS (ECS + RDS)
 
 This backend is ready to run as a container on ECS Fargate behind an Application Load Balancer (ALB), with PostgreSQL hosted on RDS and secrets in SSM/Secrets Manager.
