@@ -83,4 +83,33 @@ describe("Class routes", () => {
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("title", "Toán");
   });
+
+  test("public class detail does not leak tutor verification artifacts", async () => {
+    mockPrisma.class.findUnique.mockResolvedValue({
+      id: CLASS_ID,
+      tutorId: "tutor-1",
+      isDeleted: false,
+      status: ClassStatus.PUBLISHED,
+      subject: {},
+      tutor: {
+        id: "tutor-1",
+        verificationStatus: "VERIFIED",
+        nationalIdNumber: "123456789",
+        nationalIdFrontImageUrl: "https://front",
+        nationalIdBackImageUrl: "https://back",
+        proofDocuments: { studentCardUrl: "https://secret" },
+        certificatesDetail: [{ imageUrl: "https://cert" }],
+      },
+      title: "Toán",
+      pricePerHour: 200000,
+      locationType: LocationType.ONLINE,
+    } as any);
+
+    const res = await request(app).get(`/api/classes/${CLASS_ID}`);
+    expect(res.status).toBe(200);
+    expect(res.body?.tutor?.nationalIdFrontImageUrl).toBeUndefined();
+    expect(res.body?.tutor?.nationalIdBackImageUrl).toBeUndefined();
+    expect(res.body?.tutor?.proofDocuments).toBeUndefined();
+    expect(res.body?.tutor?.certificatesDetail).toBeUndefined();
+  });
 });

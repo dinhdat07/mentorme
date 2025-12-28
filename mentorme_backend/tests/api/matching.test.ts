@@ -2,6 +2,9 @@ import request from "supertest";
 import app from "../../src/app";
 import { mockPrisma } from "../utils/mockPrisma";
 import { ClassStatus, UserStatus } from "@prisma/client";
+const VerificationStatus = {
+  VERIFIED: "VERIFIED",
+};
 
 describe("Matching routes", () => {
   beforeEach(() => {
@@ -13,6 +16,7 @@ describe("Matching routes", () => {
       {
         id: "t1",
         verified: true,
+        verificationStatus: VerificationStatus.VERIFIED as any,
         user: { status: UserStatus.ACTIVE },
         trustScore: 60,
         averageRating: 4.5,
@@ -31,6 +35,7 @@ describe("Matching routes", () => {
       {
         id: "t2",
         verified: true,
+        verificationStatus: VerificationStatus.VERIFIED as any,
         user: { status: UserStatus.ACTIVE },
         trustScore: 80,
         averageRating: 4.0,
@@ -56,5 +61,42 @@ describe("Matching routes", () => {
     expect(mockPrisma.tutorProfile.findMany).toHaveBeenCalled();
     // Should be sorted by matchScore descending; tutor with closer price and higher rating should lead
     expect(res.body[0].tutor.id).toBe("t1");
+  });
+
+  test("matching response strips PII", async () => {
+    mockPrisma.tutorProfile.findMany.mockResolvedValue([
+      {
+        id: "t1",
+        verified: true,
+        verificationStatus: VerificationStatus.VERIFIED as any,
+        user: { status: UserStatus.ACTIVE },
+        trustScore: 60,
+        averageRating: 4.5,
+        totalCompletedBookings: 10,
+        nationalIdNumber: "123456789",
+        nationalIdFrontImageUrl: "https://front",
+        proofDocuments: { studentCardUrl: "https://secret" },
+        classes: [
+          {
+            id: "11111111-1111-4111-8111-111111111111",
+            subjectId: "22222222-2222-4222-8222-222222222222",
+            pricePerHour: 200000,
+            targetGrade: "Lớp 9",
+            status: ClassStatus.PUBLISHED,
+            isDeleted: false,
+          },
+        ],
+      },
+    ] as any);
+
+    const res = await request(app).get(
+      "/api/matching/tutors?subjectId=22222222-2222-4222-8222-222222222222&priceMin=150000&priceMax=250000&gradeLevel=Lop%209"
+    );
+
+    expect(res.status).toBe(200);
+    const tutor = res.body[0].tutor;
+    expect(tutor.nationalIdFrontImageUrl).toBeUndefined();
+    expect(tutor.proofDocuments).toBeUndefined();
+    expect(String(tutor.nationalIdNumber || "")).toMatch(/\*+6789/);
   });
 });

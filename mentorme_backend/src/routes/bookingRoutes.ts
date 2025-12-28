@@ -6,7 +6,13 @@ import {
   CancelledBy,
   ClassStatus,
   UserRole,
+  VerificationStatus,
 } from "@prisma/client";
+
+const VS =
+  VerificationStatus ?? {
+    VERIFIED: "VERIFIED",
+  };
 import { z } from "zod";
 import { recalculateTutorStats } from "../services/tutorStats";
 
@@ -32,6 +38,13 @@ const getTutorIdByUser = async (userId: string) => {
   return tutor?.id;
 };
 
+const ensureTutorVerified = async (tutorId: string) => {
+  const tutor = await prisma.tutorProfile.findUnique({ where: { id: tutorId } });
+  if (!tutor || tutor.verificationStatus !== VS.VERIFIED) {
+    return false;
+  }
+  return true;
+};
 
 router.post("/", authGuard([UserRole.STUDENT]), async (req, res) => {
   try {
@@ -182,6 +195,13 @@ router.patch("/:id/confirm", authGuard([UserRole.TUTOR]), async (req, res) => {
       return res.status(400).json({ message: "Only pending bookings can be confirmed" });
     }
 
+    const isVerifiedTutor = await ensureTutorVerified(tutorId);
+    if (!isVerifiedTutor) {
+      return res
+        .status(403)
+        .json({ message: "Tutor must be verified before confirming a class" });
+    }
+
     const updated = await prisma.booking.update({
       where: { id: booking.id },
       data: {
@@ -325,6 +345,10 @@ router.patch("/:id/complete", authGuard([UserRole.TUTOR, UserRole.ADMIN]), async
       const tutorId = await getTutorIdByUser(req.user!.id);
       if (!tutorId || tutorId !== booking.tutorId) {
         return res.status(403).json({ message: "Forbidden" });
+      }
+      const isVerifiedTutor = await ensureTutorVerified(tutorId);
+      if (!isVerifiedTutor) {
+        return res.status(403).json({ message: "Tutor must be verified to complete a class" });
       }
     }
 

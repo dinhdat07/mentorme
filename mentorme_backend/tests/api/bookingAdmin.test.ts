@@ -15,12 +15,19 @@ describe("Booking and admin routes", () => {
   });
 
   test("tutor confirms booking", async () => {
-    mockPrisma.tutorProfile.findUnique.mockResolvedValue({ id: "tutor-1", userId: "user-tutor" });
+    mockPrisma.tutorProfile.findUnique
+      .mockResolvedValueOnce({ id: "tutor-1", userId: "user-tutor" } as any) // getTutorIdByUser
+      .mockResolvedValueOnce({ id: "tutor-1", verificationStatus: "VERIFIED" } as any); // ensureTutorVerified
     mockPrisma.booking.findUnique.mockResolvedValue({
       id: BOOKING_ID,
       tutorId: "tutor-1",
       status: BookingStatus.PENDING,
       isTrial: false,
+    } as any);
+    mockPrisma.tutorProfile.findUnique.mockResolvedValueOnce({
+      id: "tutor-1",
+      userId: "user-tutor",
+      verificationStatus: "VERIFIED",
     } as any);
     mockPrisma.booking.update.mockResolvedValue({ id: BOOKING_ID, status: BookingStatus.CONFIRMED } as any);
 
@@ -32,12 +39,32 @@ describe("Booking and admin routes", () => {
     expect(mockPrisma.booking.update).toHaveBeenCalled();
   });
 
+  test("unverified tutor cannot confirm booking", async () => {
+    mockPrisma.tutorProfile.findUnique
+      .mockResolvedValueOnce({ id: "tutor-1", userId: "user-tutor" } as any) // getTutorIdByUser
+      .mockResolvedValueOnce({ id: "tutor-1", verificationStatus: "PENDING" } as any); // ensureTutorVerified
+    mockPrisma.booking.findUnique.mockResolvedValue({
+      id: BOOKING_ID,
+      tutorId: "tutor-1",
+      status: BookingStatus.PENDING,
+      isTrial: false,
+    } as any);
+
+    const res = await request(app)
+      .patch(`/api/bookings/${BOOKING_ID}/confirm`)
+      .set("Authorization", `Bearer ${tutorToken}`);
+
+    expect(res.status).toBe(403);
+    expect(mockPrisma.booking.update).not.toHaveBeenCalled();
+  });
+
   test("student cancels booking", async () => {
     mockPrisma.booking.findUnique.mockResolvedValue({
       id: BOOKING_ID,
       tutorId: "tutor-1",
       studentId: "student-1",
-      status: BookingStatus.CONFIRMED,
+      status: BookingStatus.PENDING,
+      isTrial: false,
     } as any);
     mockPrisma.studentProfile.findUnique.mockResolvedValue({ id: "student-1", userId: "user-student" });
     mockPrisma.booking.update.mockResolvedValue({ id: BOOKING_ID, status: BookingStatus.CANCELLED } as any);
@@ -51,9 +78,46 @@ describe("Booking and admin routes", () => {
     expect(mockPrisma.booking.update).toHaveBeenCalled();
   });
 
+  test("unverified tutor cannot complete booking", async () => {
+    mockPrisma.booking.findUnique.mockResolvedValue({
+      id: BOOKING_ID,
+      tutorId: "tutor-1",
+      studentId: "student-1",
+      status: BookingStatus.PENDING,
+      isTrial: false,
+    } as any);
+    mockPrisma.tutorProfile.findUnique
+      .mockResolvedValueOnce({ id: "tutor-1", userId: "user-tutor" } as any) // getTutorIdByUser
+      .mockResolvedValueOnce({ id: "tutor-1", verificationStatus: "PENDING" } as any); // ensureTutorVerified
+
+    const res = await request(app)
+      .patch(`/api/bookings/${BOOKING_ID}/complete`)
+      .set("Authorization", `Bearer ${tutorToken}`);
+
+    expect(res.status).toBe(403);
+    expect(mockPrisma.booking.update).not.toHaveBeenCalled();
+  });
+
   test("admin verifies tutor and lists bookings", async () => {
-    mockPrisma.tutorProfile.findUnique.mockResolvedValue({ id: "tutor-1", userId: "user-tutor" });
-    mockPrisma.$transaction.mockResolvedValue([]);
+    mockPrisma.tutorProfile.findUnique
+      .mockResolvedValueOnce({
+        id: "tutor-1",
+        userId: "user-tutor",
+        verificationStatus: "PENDING",
+      } as any) // verify route fetch
+      .mockResolvedValueOnce({
+        id: "tutor-1",
+        userId: "user-tutor",
+        verificationStatus: "VERIFIED",
+      } as any); // ensureTutorVerified follow-ups if any
+    mockPrisma.user.update.mockResolvedValue({ status: "ACTIVE" } as any);
+    mockPrisma.tutorProfile.update.mockResolvedValue({
+      id: "tutor-1",
+      verificationStatus: "VERIFIED",
+    } as any);
+    mockPrisma.$transaction.mockImplementation(async (actions: any[]) => {
+      return Promise.all(actions.map((fn) => fn));
+    });
 
     const verifyRes = await request(app)
       .patch("/api/admin/tutors/tutor-1/verify")

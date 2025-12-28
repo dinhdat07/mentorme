@@ -24,6 +24,7 @@ const translations: Record<Language, any> = {
     noneDraft: 'Chưa có bản nháp',
     noneArchived: 'Chưa có lớp lưu trữ',
     edit: 'Chỉnh sửa',
+    schedule: 'Lịch học',
     archive: 'Lưu trữ',
     publish: 'Đăng',
     view: 'Xem',
@@ -40,6 +41,7 @@ const translations: Record<Language, any> = {
     noneDraft: 'No draft classes',
     noneArchived: 'No archived classes',
     edit: 'Edit',
+    schedule: 'Schedule',
     archive: 'Archive',
     publish: 'Publish',
     view: 'View',
@@ -160,6 +162,12 @@ export default function TutorClassesPage() {
                               <Archive size={16} />
                               {processingId === cls.id ? '...' : t.archive}
                             </button>
+                            <Link
+                              href={`/dashboard/tutor/classes/${cls.id}/schedule`}
+                              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-300 border bg-blue-500/20 hover:bg-blue-500/30 text-blue-300"
+                            >
+                              {t.schedule}
+                            </Link>
                           </div>
                         </div>
                       </div>
@@ -212,6 +220,12 @@ export default function TutorClassesPage() {
                               <CheckCircle size={16} />
                               {processingId === cls.id ? '...' : t.publish}
                             </button>
+                            <Link
+                              href={`/dashboard/tutor/classes/${cls.id}/schedule`}
+                              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-300 border bg-blue-500/20 hover:bg-blue-500/30 text-blue-300"
+                            >
+                              {t.schedule}
+                            </Link>
                           </div>
                         </div>
                       </div>

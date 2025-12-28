@@ -1,10 +1,18 @@
 import { Router } from "express";
 import { z } from "zod";
-import { ClassStatus, Prisma, UserStatus } from "@prisma/client";
+import { ClassStatus, Prisma, UserStatus, VerificationStatus } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { matchTutors } from "../domain/matchingEngine";
+import { maskNationalId, sanitizeTutorForPublic } from "../utils/tutorSanitizer";
 
 const router = Router();
+const VS =
+  VerificationStatus ?? {
+    UNVERIFIED: "UNVERIFIED",
+    PENDING: "PENDING",
+    VERIFIED: "VERIFIED",
+    REJECTED: "REJECTED",
+  };
 
 const timeSlotSchema = z
   .object({
@@ -66,7 +74,7 @@ router.get("/tutors", async (req, res) => {
     }
 
     const where: Prisma.TutorProfileWhereInput = {
-      verified: true,
+      verificationStatus: VS.VERIFIED as any,
       user: { status: UserStatus.ACTIVE },
     };
     if (effectiveCity) {
@@ -144,6 +152,7 @@ router.get("/tutors", async (req, res) => {
     });
 
     const results = tutors
+      .filter((tutor) => tutor.verificationStatus === VS.VERIFIED)
       .map((tutor) => {
         const subjectMatch = effectiveSubjectId
           ? tutor.classes.some((cls) => cls.subjectId === effectiveSubjectId)
@@ -183,7 +192,7 @@ router.get("/tutors", async (req, res) => {
           (gradeMatch ? 4 : 0) -
           pricePenalty;
 
-        return { tutor, matchScore };
+        return { tutor: sanitizeTutorForPublic(tutor, { maskNationalId }), matchScore };
       })
       .sort((a, b) => b.matchScore - a.matchScore);
 

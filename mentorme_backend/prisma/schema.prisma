@@ -25,10 +25,34 @@ enum ClassStatus {
   ARCHIVED
 }
 
+enum ClassLifecycleStatus {
+  PENDING
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+}
+
+enum ReminderType {
+  REMINDER_24H
+  REMINDER_1H
+}
+
 enum LocationType {
   ONLINE
   AT_STUDENT
   AT_TUTOR
+}
+
+enum VerificationStatus {
+  UNVERIFIED
+  PENDING
+  VERIFIED
+  REJECTED
 }
 
 enum BookingStatus {
@@ -84,6 +108,7 @@ model TutorProfile {
   bio                     String?
   education               String?
   certificates            String[]
+  proofDocuments          Json?
   yearsOfExperience       Int      @default(0)
   hourlyRateMin           Float?
   hourlyRateMax           Float?
@@ -91,6 +116,14 @@ model TutorProfile {
   city                    String?
   district                String?
   verified                Boolean  @default(false)
+  verificationStatus      VerificationStatus @default(UNVERIFIED)
+  nationalIdNumber        String?  @unique
+  nationalIdFrontImageUrl String?
+  nationalIdBackImageUrl  String?
+  certificatesDetail      Json?
+  verificationSubmittedAt DateTime?
+  verificationReviewedAt  DateTime?
+  verificationNotes       String?
   trustScore              Float    @default(0)
   totalBookings           Int      @default(0)
   averageRating           Float    @default(0)
@@ -111,6 +144,7 @@ model TutorProfile {
   bookings       Booking[]
   reviews        Review[]
   availabilities TutorAvailability[]
+  unavailabilities TutorUnavailability[]
 }
 
 model TutorAvailability {
@@ -119,6 +153,7 @@ model TutorAvailability {
   dayOfWeek    Int
   startMinute  Int
   endMinute    Int
+  timezone     String       @default("UTC")
   locationType LocationType
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
@@ -126,6 +161,93 @@ model TutorAvailability {
   tutor TutorProfile @relation(fields: [tutorId], references: [id], onDelete: Cascade)
 
   @@index([tutorId, dayOfWeek])
+}
+
+model TutorUnavailability {
+  id        String   @id @default(uuid())
+  tutorId   String
+  startAt   DateTime
+  endAt     DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tutor TutorProfile @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+
+  @@index([tutorId, startAt, endAt])
+}
+
+model ClassSchedule {
+  id              String   @id @default(uuid())
+  classId         String   @unique
+  timezone        String   @default("UTC")
+  recurrenceRule  Json?
+  explicitSessions Json?
+  totalSessions   Int
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  class   Class     @relation(fields: [classId], references: [id], onDelete: Cascade)
+}
+
+enum SessionStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  MISSED
+}
+
+model Session {
+  id                String        @id @default(uuid())
+  classId           String
+  scheduledStartAt  DateTime
+  scheduledEndAt    DateTime
+  status            SessionStatus @default(SCHEDULED)
+  tutorStartConfirmedAt    DateTime?
+  studentStartConfirmedAt  DateTime?
+  tutorCompleteConfirmedAt DateTime?
+  studentCompleteConfirmedAt DateTime?
+  startedAt         DateTime?
+  completedAt       DateTime?
+  disputeFlaggedAt  DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  class Class @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  @@index([classId, scheduledStartAt])
+  @@index([scheduledStartAt, scheduledEndAt])
+}
+
+model Notification {
+  id         String               @id @default(uuid())
+  userId     String
+  type       String
+  title      String
+  body       String
+  metadata   Json?
+  channel    NotificationChannel  @default(IN_APP)
+  dedupKey   String
+  readAt     DateTime?
+  createdAt  DateTime             @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dedupKey])
+  @@index([userId, createdAt])
+}
+
+model ReminderLog {
+  id           String       @id @default(uuid())
+  userId       String
+  sessionId    String
+  reminderType ReminderType
+  sentAt       DateTime     @default(now())
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, sessionId, reminderType])
 }
 
 model Subject {
@@ -153,6 +275,9 @@ model Class {
   city         String?
   district     String?
   status       ClassStatus  @default(DRAFT)
+  lifecycleStatus ClassLifecycleStatus @default(PENDING)
+  totalSessions Int      @default(0)
+  sessionsCompleted Int  @default(0)
   isDeleted    Boolean      @default(false)
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
@@ -160,6 +285,8 @@ model Class {
   tutor    TutorProfile @relation(fields: [tutorId], references: [id])
   subject  Subject      @relation(fields: [subjectId], references: [id])
   bookings Booking[]
+  schedule ClassSchedule?
+  sessions Session[]
 
   @@index([subjectId, status])
   @@index([tutorId])

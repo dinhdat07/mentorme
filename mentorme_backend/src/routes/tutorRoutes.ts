@@ -1,9 +1,30 @@
 import { Router } from "express";
 import { authGuard } from "../middleware/auth";
-import { ClassStatus, Prisma, UserRole, UserStatus } from "@prisma/client";
+import {
+  ClassStatus,
+  LocationType,
+  Prisma,
+  UserRole,
+  UserStatus,
+  VerificationStatus,
+} from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { z } from "zod";
 import { updateTutorProfileEmbedding } from "../domain/embeddings";
+import {
+  approveTutorVerification,
+  rejectTutorVerification,
+  submitTutorVerification,
+} from "../services/tutorVerification";
+import { maskNationalId, sanitizeTutorForPublic } from "../utils/tutorSanitizer";
+
+const VS =
+  VerificationStatus ?? {
+    UNVERIFIED: "UNVERIFIED",
+    PENDING: "PENDING",
+    VERIFIED: "VERIFIED",
+    REJECTED: "REJECTED",
+  };
 
 const router = Router();
 
@@ -34,6 +55,31 @@ const updateSchema = z.object({
   city: z.string().optional(),
   district: z.string().optional(),
 });
+
+const verificationSubmitSchema = z.object({
+  nationalIdNumber: z.string().min(6).max(30),
+  nationalIdFrontImageUrl: z.string().url(),
+  nationalIdBackImageUrl: z.string().url(),
+  proofDocuments: z.any().optional(),
+  certificatesDetail: z.any().optional(),
+});
+
+const availabilitySchema = z.array(
+  z.object({
+    dayOfWeek: z.number().int().min(0).max(6),
+    startMinute: z.number().int().min(0).max(1440),
+    endMinute: z.number().int().min(1).max(1440),
+    timezone: z.string().min(1).default("UTC"),
+    locationType: z.nativeEnum(LocationType),
+  })
+);
+
+const unavailabilitySchema = z.array(
+  z.object({
+    startAt: z.string().datetime(),
+    endAt: z.string().datetime(),
+  })
+);
 
 router.patch("/me", authGuard([UserRole.TUTOR]), async (req, res) => {
   try {
@@ -70,6 +116,164 @@ router.patch("/me", authGuard([UserRole.TUTOR]), async (req, res) => {
       return res.status(400).json({ message: "Invalid payload", issues: error.issues });
     }
     console.error("Failed to update tutor profile", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+router.get("/me/availability", authGuard([UserRole.TUTOR]), async (req, res) => {
+  try {
+    const tutor = await prisma.tutorProfile.findUnique({
+      where: { userId: req.user!.id },
+    });
+    if (!tutor) return res.status(404).json({ message: "Tutor profile not found" });
+
+    const availabilities = await prisma.tutorAvailability.findMany({
+      where: { tutorId: tutor.id },
+      orderBy: [{ dayOfWeek: "asc" }, { startMinute: "asc" }],
+    });
+    return res.json(availabilities);
+  } catch (error) {
+    return res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+router.put("/me/availability", authGuard([UserRole.TUTOR]), async (req, res) => {
+  try {
+    const entries = availabilitySchema.parse(req.body);
+    const tutor = await prisma.tutorProfile.findUnique({ where: { userId: req.user!.id } });
+    if (!tutor) return res.status(404).json({ message: "Tutor profile not found" });
+
+    await prisma.$transaction(async (tx) => {
+      await tx.tutorAvailability.deleteMany({ where: { tutorId: tutor.id } });
+      if (entries.length > 0) {
+        await tx.tutorAvailability.createMany({
+          data: entries.map((e) => ({
+            tutorId: tutor.id,
+            dayOfWeek: e.dayOfWeek,
+            startMinute: e.startMinute,
+            endMinute: e.endMinute,
+            timezone: e.timezone,
+            locationType: e.locationType,
+          })),
+        });
+      }
+    });
+
+    const updated = await prisma.tutorAvailability.findMany({
+      where: { tutorId: tutor.id },
+      orderBy: [{ dayOfWeek: "asc" }, { startMinute: "asc" }],
+    });
+    return res.json(updated);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ message: "Invalid payload", issues: error.issues });
+    }
+    return res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+router.get("/me/unavailability", authGuard([UserRole.TUTOR]), async (req, res) => {
+  try {
+    const tutor = await prisma.tutorProfile.findUnique({
+      where: { userId: req.user!.id },
+    });
+    if (!tutor) return res.status(404).json({ message: "Tutor profile not found" });
+
+    const blocks = await prisma.tutorUnavailability.findMany({
+      where: { tutorId: tutor.id },
+      orderBy: { startAt: "asc" },
+    });
+    return res.json(blocks);
+  } catch (error) {
+    return res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+router.put("/me/unavailability", authGuard([UserRole.TUTOR]), async (req, res) => {
+  try {
+    const blocks = unavailabilitySchema.parse(req.body);
+    const tutor = await prisma.tutorProfile.findUnique({ where: { userId: req.user!.id } });
+    if (!tutor) return res.status(404).json({ message: "Tutor profile not found" });
+
+    await prisma.$transaction(async (tx) => {
+      await tx.tutorUnavailability.deleteMany({ where: { tutorId: tutor.id } });
+      if (blocks.length > 0) {
+        await tx.tutorUnavailability.createMany({
+          data: blocks
+            .map((b) => ({
+              tutorId: tutor.id,
+              startAt: new Date(b.startAt),
+              endAt: new Date(b.endAt),
+            }))
+            .filter((b) => b.endAt > b.startAt),
+        });
+      }
+    });
+
+    const updated = await prisma.tutorUnavailability.findMany({
+      where: { tutorId: tutor.id },
+      orderBy: { startAt: "asc" },
+    });
+    return res.json(updated);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ message: "Invalid payload", issues: error.issues });
+    }
+    return res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+router.get("/me/verification", authGuard([UserRole.TUTOR]), async (req, res) => {
+  try {
+    const tutor = await prisma.tutorProfile.findUnique({
+      where: { userId: req.user!.id },
+    });
+    if (!tutor) {
+      return res.status(404).json({ message: "Tutor profile not found" });
+    }
+    const masked = {
+      verificationStatus: tutor.verificationStatus,
+      nationalIdNumber: maskNationalId(tutor.nationalIdNumber),
+      nationalIdFrontImageUrl: tutor.nationalIdFrontImageUrl,
+      nationalIdBackImageUrl: tutor.nationalIdBackImageUrl,
+      proofDocuments: tutor.proofDocuments,
+      certificatesDetail: tutor.certificatesDetail,
+      verificationSubmittedAt: tutor.verificationSubmittedAt,
+      verificationReviewedAt: tutor.verificationReviewedAt,
+      verificationNotes: tutor.verificationNotes,
+    };
+    return res.json(masked);
+  } catch (error) {
+    return res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+router.put("/me/verification", authGuard([UserRole.TUTOR]), async (req, res) => {
+  try {
+    const payload = verificationSubmitSchema.parse(req.body);
+    const tutor = await prisma.tutorProfile.findUnique({
+      where: { userId: req.user!.id },
+    });
+    if (!tutor) {
+      return res.status(404).json({ message: "Tutor profile not found" });
+    }
+    await submitTutorVerification(prisma, tutor.id, payload);
+    const updated = await prisma.tutorProfile.findUnique({ where: { id: tutor.id } });
+    return res.json({
+      verificationStatus: updated?.verificationStatus,
+      verificationSubmittedAt: updated?.verificationSubmittedAt,
+      nationalIdNumber: maskNationalId(updated?.nationalIdNumber ?? null),
+    });
+  } catch (error: any) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ message: "Invalid payload", issues: error.issues });
+    }
+    if (error.code === "P2002") {
+      return res.status(409).json({ message: "National ID is already used by another tutor" });
+    }
+    if (error.message && error.message.includes("not allowed")) {
+      return res.status(400).json({ message: error.message });
+    }
     return res.status(500).json({ message: "Internal server error" });
   }
 });
@@ -138,7 +342,7 @@ router.get("/", async (req, res) => {
     }
 
     const where: Prisma.TutorProfileWhereInput = {
-      verified: true,
+      verificationStatus: VS.VERIFIED as any,
       user: { status: UserStatus.ACTIVE },
     };
     if (query.trustScoreMin !== undefined) {
@@ -192,8 +396,11 @@ router.get("/", async (req, res) => {
       prisma.tutorProfile.count({ where }),
     ]);
 
+    const verifiedItems = items.filter((tutor) => tutor.verificationStatus === VS.VERIFIED);
+    const safeItems = verifiedItems.map((tutor) => sanitizeTutorForPublic(tutor, { maskNationalId }));
+
     return res.json({
-      data: items,
+      data: safeItems,
       total,
       page: query.page,
       pageSize: query.pageSize,
@@ -272,7 +479,7 @@ router.get("/:id", async (req, res) => {
     const tutor = await prisma.tutorProfile.findFirst({
       where: {
         id: req.params.id,
-        verified: true,
+        verificationStatus: VS.VERIFIED as any,
         user: { status: UserStatus.ACTIVE },
       },
       include: {
@@ -285,7 +492,7 @@ router.get("/:id", async (req, res) => {
     if (!tutor) {
       return res.status(404).json({ message: "Tutor not found" });
     }
-    return res.json(tutor);
+    return res.json(sanitizeTutorForPublic(tutor, { maskNationalId }));
   } catch (error) {
     return res.status(500).json({ message: "Internal server error" });
   }

@@ -4,8 +4,10 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuthContext } from './auth-provider';
-import { LogOut, LayoutDashboard, Users, BookOpen, Star, Settings, Sun, Moon } from 'lucide-react';
+import { LogOut, LayoutDashboard, Users, BookOpen, Star, Settings, Sun, Moon, Bell } from 'lucide-react';
 import { useUISettings } from './ui-settings-context';
+import useSWR from 'swr';
+import { apiClient } from '@/lib/api-client';
 
 type ThemeMode = 'dark' | 'light';
 type Language = 'vi' | 'en';
@@ -19,23 +21,27 @@ const navTranslations: Record<Language, Record<string, string>> = {
     dashboard: 'Bảng điều khiển',
     findTutors: 'Tìm gia sư',
     myBookings: 'Lịch học',
+    calendar: 'Lịch',
     profile: 'Hồ sơ',
     myClasses: 'Lớp của tôi',
     bookings: 'Lịch đặt',
     reviews: 'Đánh giá',
     logout: 'Đăng xuất',
     admin: 'Bảng điều khiển',
+    notifications: 'Thông báo',
   },
   en: {
     dashboard: 'Dashboard',
     findTutors: 'Find Tutors',
     myBookings: 'My Bookings',
+    calendar: 'Calendar',
     profile: 'Profile',
     myClasses: 'My Classes',
     bookings: 'Bookings',
     reviews: 'Reviews',
     logout: 'Logout',
     admin: 'Dashboard',
+    notifications: 'Notifications',
   },
 };
 
@@ -46,6 +52,8 @@ export const SidebarNav = ({ theme }: SidebarNavProps) => {
   const { theme: ctxTheme, language, setLanguage, setTheme } = useUISettings();
   const resolvedTheme = theme ?? ctxTheme;
   const t = navTranslations[language];
+  const { data: notifData } = useSWR(user ? '/api/notifications/me' : null, apiClient.get, { refreshInterval: 30000 });
+  const unread = notifData?.unread ?? 0;
 
   const getNavItems = () => {
     if (!user) return [];
@@ -55,6 +63,8 @@ export const SidebarNav = ({ theme }: SidebarNavProps) => {
         { label: t.dashboard, href: '/dashboard/student', icon: LayoutDashboard },
         { label: t.findTutors, href: '/tutors', icon: Users },
         { label: t.myBookings, href: '/dashboard/student/bookings', icon: BookOpen },
+        { label: t.calendar, href: '/dashboard/student/calendar', icon: BookOpen },
+        { label: t.notifications, href: '/notifications', icon: Bell },
         { label: t.profile, href: '/dashboard/student/profile', icon: Settings },
       ];
     }
@@ -64,6 +74,9 @@ export const SidebarNav = ({ theme }: SidebarNavProps) => {
         { label: t.dashboard, href: '/dashboard/tutor', icon: LayoutDashboard },
         { label: t.myClasses, href: '/dashboard/tutor/classes', icon: BookOpen },
         { label: t.bookings, href: '/dashboard/tutor/bookings', icon: Users },
+        { label: t.calendar, href: '/dashboard/tutor/calendar', icon: BookOpen },
+        { label: t.notifications, href: '/notifications', icon: Bell },
+        { label: 'Xác minh', href: '/dashboard/tutor/verification', icon: Settings },
         { label: t.profile, href: '/dashboard/tutor/profile', icon: Settings },
         { label: t.reviews, href: '/dashboard/tutor/reviews', icon: Star },
       ];
@@ -72,6 +85,8 @@ export const SidebarNav = ({ theme }: SidebarNavProps) => {
     if (user.role === 'ADMIN') {
       return [
         { label: t.admin, href: '/dashboard/admin', icon: LayoutDashboard },
+        { label: 'Tutor Verifications', href: '/dashboard/admin/verifications', icon: Users },
+        { label: t.notifications, href: '/notifications', icon: Bell },
       ];
     }
 
@@ -104,6 +119,7 @@ export const SidebarNav = ({ theme }: SidebarNavProps) => {
         {getNavItems().map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href;
+          const showBadge = item.href === '/notifications' && unread > 0;
           return (
             <Link
               key={item.href}
@@ -118,6 +134,7 @@ export const SidebarNav = ({ theme }: SidebarNavProps) => {
             >
               <Icon className="w-5 h-5" />
               <span>{item.label}</span>
+              {showBadge && <span className="ml-auto text-xs px-2 py-0.5 rounded-full bg-red-500 text-white">{unread}</span>}
               {isActive && <div className="ml-auto w-1 h-6 bg-white rounded-full" />}
             </Link>
           );

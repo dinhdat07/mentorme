@@ -5,8 +5,11 @@
 export type UserRole = 'STUDENT' | 'TUTOR' | 'ADMIN';
 export type UserStatus = 'ACTIVE' | 'PENDING' | 'SUSPENDED';
 export type ClassStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+export type ClassLifecycleStatus = 'PENDING' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
 export type BookingStatus = 'PENDING' | 'CONFIRMED' | 'TRIAL' | 'CANCELLED' | 'COMPLETED';
 export type LocationType = 'ONLINE' | 'AT_STUDENT' | 'AT_TUTOR';
+export type VerificationStatus = 'UNVERIFIED' | 'PENDING' | 'VERIFIED' | 'REJECTED';
+export type SessionStatus = 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'MISSED';
 
 export interface User {
   id: string;
@@ -36,6 +39,15 @@ export interface TutorProfile {
   bio?: string;
   education?: string;
   certificates: string[];
+  certificatesDetail?: any;
+  proofDocuments?: any;
+  nationalIdNumber?: string | null;
+  nationalIdFrontImageUrl?: string | null;
+  nationalIdBackImageUrl?: string | null;
+  verificationStatus?: VerificationStatus;
+  verificationSubmittedAt?: string | null;
+  verificationReviewedAt?: string | null;
+  verificationNotes?: string | null;
   yearsOfExperience: number;
   hourlyRateMin?: number;
   hourlyRateMax?: number;
@@ -66,9 +78,43 @@ export interface TutorAvailability {
   dayOfWeek: number;
   startMinute: number;
   endMinute: number;
+  timezone: string;
   locationType: LocationType;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface TutorUnavailability {
+  id: string;
+  tutorId: string;
+  startAt: string;
+  endAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Session {
+  id: string;
+  classId: string;
+  scheduledStartAt: string;
+  scheduledEndAt: string;
+  status: SessionStatus;
+  tutorStartConfirmedAt?: string | null;
+  studentStartConfirmedAt?: string | null;
+  tutorCompleteConfirmedAt?: string | null;
+  studentCompleteConfirmedAt?: string | null;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  disputeFlaggedAt?: string | null;
+}
+
+export interface ClassSchedule {
+  id: string;
+  classId: string;
+  timezone: string;
+  recurrenceRule?: any;
+  explicitSessions?: any;
+  totalSessions: number;
 }
 
 export interface Subject {
@@ -90,6 +136,9 @@ export interface Class {
   city?: string;
   district?: string;
   status: ClassStatus;
+  lifecycleStatus?: ClassLifecycleStatus;
+  totalSessions?: number;
+  sessionsCompleted?: number;
   isDeleted: boolean;
   createdAt: string;
   updatedAt: string;
