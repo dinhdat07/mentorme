@@ -85,6 +85,16 @@ Use any REST client (Insomnia, Postman, VS Code `rest` files) to call the endpoi
 - Calendars: `GET /api/calendar/tutor`, `GET /api/calendar/student` (upcoming sessions)
 - Session statuses currently: `SCHEDULED`, `CANCELLED`, `MISSED` (start/complete flow deferred to Phase 3).
 
+## Sessions & Payments (Phase 3 & 4A/4B)
+
+- Session lifecycle: `PATCH /api/sessions/:id/start`, `PATCH /api/sessions/:id/complete` (both tutor & student must confirm). Disputed sessions are flagged after long one-sided confirmations.
+- Notifications: `GET /api/notifications/me`, `PATCH /api/notifications/:id/read` plus automated reminders at T-24h/T-1h (see `npm run reminders:run`).
+- Payments (mock escrow):
+  - Create intent: `POST /api/classes/:id/payments/intents` (student/admin; requires schedule & booking)
+  - Confirm mock payment: `POST /api/payments/:intentId/confirm`
+  - Summary & ledger: `GET /api/classes/:id/payments/summary`
+  - Escrow auto-releases on session completion (90% tutor / 10% platform); insufficient escrow notifies payer. Cancelling a class (`PATCH /api/classes/:id/cancel`) refunds remaining balance.
+
 ## Deploying to AWS (ECS + RDS)
 
 This backend is ready to run as a container on ECS Fargate behind an Application Load Balancer (ALB), with PostgreSQL hosted on RDS and secrets in SSM/Secrets Manager.

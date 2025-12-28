@@ -61,12 +61,13 @@ const themeStyles: Record<ThemeMode, Record<string, string>> = {
     select:
       'w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-slate-600 transition-all',
     heading: 'text-3xl font-bold text-white mb-6',
-    error: 'bg-red-500/10 border border-red-500/40 text-red-200',
-    btnPrimary:
+  error: 'bg-red-500/10 border border-red-500/40 text-red-200',
+  btnPrimary:
       'flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:opacity-50 text-white font-semibold py-2 px-4 rounded-lg transition shadow-lg shadow-purple-500/30',
-    btnGhost:
+  btnGhost:
       'flex-1 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold py-2 px-4 rounded-lg transition',
-    text: 'text-white',
+  text: 'text-white',
+    muted: 'text-white/70',
   },
   light: {
     page: 'bg-slate-50',
@@ -78,12 +79,13 @@ const themeStyles: Record<ThemeMode, Record<string, string>> = {
     select:
       'w-full px-4 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-purple-200 transition-all',
     heading: 'text-3xl font-bold text-slate-900 mb-6',
-    error: 'bg-red-50 border border-red-200 text-red-700',
-    btnPrimary:
+  error: 'bg-red-50 border border-red-200 text-red-700',
+  btnPrimary:
       'flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 text-white font-semibold py-2 px-4 rounded-lg transition shadow-sm',
-    btnGhost:
+  btnGhost:
       'flex-1 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-800 font-semibold py-2 px-4 rounded-lg transition',
-    text: 'text-slate-900',
+  text: 'text-slate-900',
+    muted: 'text-slate-600',
   },
 };
 
@@ -97,10 +99,12 @@ export default function BookClassPage() {
   const classId = params.id as string;
 
   const { data: classData, isLoading: classLoading } = useSWR<Class>(`/api/classes/${classId}`, apiClient.get);
+  const { data: bookingCheck } = useSWR(user ? `/api/bookings/me?classId=${classId}` : null, apiClient.get);
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [issues, setIssues] = useState<string[]>([]);
+
   const [formData, setFormData] = useState({
     isTrial: false,
     requestedHoursPerWeek: 2,
@@ -170,11 +174,11 @@ export default function BookClassPage() {
       let slotNote = '';
       if (parsedSlots.length > 0) {
         const label = language === 'vi' ? 'Khung giờ mong muốn' : 'Preferred slots';
-        const lines = parsedSlots.map((slot) => {
-          const dayLabel = (language === 'vi' ? dayOptions.find((d) => d.value === slot.dayOfWeek)?.vi : dayOptions.find((d) => d.value === slot.dayOfWeek)?.en) || `Day ${slot.dayOfWeek}`;
-          return `- ${dayLabel}: ${slot.startTime} - ${slot.endTime}`;
-        });
-        slotNote = `\n${label}:\n${lines.join('\n')}`;
+    const lines = parsedSlots.map((slot) => {
+      const dayLabel = (language === 'vi' ? dayOptions.find((d) => d.value === slot.dayOfWeek)?.vi : dayOptions.find((d) => d.value === slot.dayOfWeek)?.en) || `Day ${slot.dayOfWeek}`;
+      return `- ${dayLabel}: ${slot.startTime} - ${slot.endTime}`;
+    });
+    slotNote = `\n${label}:\n${lines.join('\n')}`;
       }
 
       await apiClient.post('/api/bookings', {
@@ -184,7 +188,7 @@ export default function BookClassPage() {
         startDateExpected: formData.startDateExpected,
         noteFromStudent: `${formData.noteFromStudent || ''}${slotNote}`,
       });
-      router.push('/dashboard/student/bookings');
+      router.push('/dashboard/student/my-classes');
     } catch (err: any) {
       if (err instanceof ApiError) {
         const issueMessages =
@@ -193,7 +197,11 @@ export default function BookClassPage() {
             return path ? `${path}: ${i.message}` : i.message;
           }) || [];
         setIssues(issueMessages);
-        setError(err.message || 'Failed to create booking');
+        if ((err as any).status === 409 || err.message?.includes('đặt lớp này')) {
+          setError(language === 'vi' ? 'Bạn đã đặt lớp này, không thể đặt lại.' : 'You already booked this class.');
+        } else {
+          setError(err.message || 'Failed to create booking');
+        }
       } else {
         setError(err.message || 'Failed to create booking');
       }
@@ -212,6 +220,27 @@ export default function BookClassPage() {
           </Link>
 
           <h1 className={styles.heading}>{t.title}</h1>
+          {bookingCheck?.bookingExists && (
+            <div className={`${styles.infoCard} border border-purple-200 mb-4`}>
+              <p className={`${styles.text} font-semibold`}>
+                {language === 'vi' ? 'Bạn đã đặt lớp này.' : 'You already booked this class.'}
+              </p>
+              <div className="flex gap-2 mt-2">
+                <Link
+                  href="/dashboard/student/my-classes"
+                  className="px-3 py-2 text-sm rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 text-white"
+                >
+                  {language === 'vi' ? 'Lớp của tôi' : 'My classes'}
+                </Link>
+                <Link
+                  href={`/dashboard/student/classes/${classId}/payment`}
+                  className="px-3 py-2 text-sm rounded-lg border border-purple-300 text-purple-700 hover:bg-purple-50"
+                >
+                  {language === 'vi' ? 'Thanh toán' : 'Payment'}
+                </Link>
+              </div>
+            </div>
+          )}
 
           {classLoading ? (
             <div className="flex items-center justify-center h-64">
@@ -384,8 +413,8 @@ export default function BookClassPage() {
                   />
                 </div>
 
-                <div className="flex gap-4">
-                  <button type="submit" disabled={isLoading} className={styles.btnPrimary}>
+                  <div className="flex gap-4">
+                    <button type="submit" disabled={isLoading || bookingCheck?.bookingExists} className={styles.btnPrimary}>
                     {isLoading ? t.booking : t.submit}
                   </button>
                   <button type="button" onClick={() => router.back()} className={styles.btnGhost}>

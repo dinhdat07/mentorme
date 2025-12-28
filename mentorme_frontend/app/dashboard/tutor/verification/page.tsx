@@ -95,11 +95,11 @@ const translations: Record<Language, any> = {
 
 const themeStyles: Record<ThemeMode, Record<string, string>> = {
   dark: {
-    card: 'bg-slate-900/70 border border-slate-800',
-    text: 'text-white',
-    muted: 'text-white/70',
-    input: 'bg-slate-800 border border-slate-700 text-white placeholder-white/50 focus:ring-purple-500 focus:border-purple-500',
-    badge: 'bg-white/10 text-white border border-white/20',
+    card: 'bg-slate-900/80 border border-slate-800',
+    text: 'text-slate-100',
+    muted: 'text-slate-300',
+    input: 'bg-slate-800 border border-slate-700 text-slate-100 placeholder-slate-400 focus:ring-purple-500 focus:border-purple-500',
+    badge: 'bg-slate-800 text-slate-100 border border-slate-700',
   },
   light: {
     card: 'bg-white border border-slate-200 shadow-sm',
@@ -153,10 +153,13 @@ export default function TutorVerificationPage() {
 
   const statusBadge = useMemo(() => {
     const base = 'px-3 py-1 rounded-full text-xs font-semibold border';
-    if (status === 'VERIFIED') return `${base} bg-green-100 text-green-700 border-green-200`;
-    if (status === 'PENDING') return `${base} bg-amber-100 text-amber-700 border-amber-200`;
-    if (status === 'REJECTED') return `${base} bg-red-100 text-red-700 border-red-200`;
-    return `${base} ${styles.badge}`;
+    if (status === 'VERIFIED')
+      return `${base} bg-green-100 text-green-700 border-green-200 dark:bg-emerald-900/70 dark:text-emerald-100 dark:border-emerald-700`;
+    if (status === 'PENDING')
+      return `${base} bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/70 dark:text-amber-100 dark:border-amber-700`;
+    if (status === 'REJECTED')
+      return `${base} bg-red-100 text-red-700 border-red-200 dark:bg-rose-900/70 dark:text-rose-100 dark:border-rose-700`;
+    return `${base} bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-600`;
   }, [status, styles.badge]);
 
   const handleCertChange = (idx: number, key: string, value: string) => {
@@ -257,7 +260,7 @@ export default function TutorVerificationPage() {
             {(!status || status === 'UNVERIFIED') && <BadgeCheck className="w-6 h-6 text-slate-400" />}
             <div>
               <p className={`text-sm ${styles.muted}`}>{t.status}</p>
-              <p className="text-xl font-bold">{t.statuses[status || 'UNVERIFIED']}</p>
+              <p className={`text-xl font-bold ${styles.text}`}>{t.statuses[status || 'UNVERIFIED']}</p>
             </div>
             <span className={statusBadge}>{status || 'UNVERIFIED'}</span>
           </div>

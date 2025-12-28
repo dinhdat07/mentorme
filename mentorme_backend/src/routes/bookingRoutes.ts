@@ -26,6 +26,12 @@ const createSchema = z.object({
   noteFromStudent: z.string().optional(),
 });
 
+const ACTIVE_BOOKING_STATUSES = [
+  BookingStatus.PENDING,
+  BookingStatus.CONFIRMED,
+  BookingStatus.TRIAL,
+];
+
 const getStudentIdByUser = async (userId: string) => {
   const student = await prisma.studentProfile.findUnique({
     where: { userId },
@@ -62,6 +68,17 @@ router.post("/", authGuard([UserRole.STUDENT]), async (req, res) => {
       return res.status(400).json({ message: "Class not available" });
     }
 
+    const existing = await prisma.booking.findFirst({
+      where: {
+        classId: classListing.id,
+        studentId,
+        status: { in: ACTIVE_BOOKING_STATUSES },
+      },
+    });
+    if (existing) {
+      return res.status(409).json({ message: "Bạn đã đặt lớp này, không thể đặt lại." });
+    }
+
     const booking = await prisma.booking.create({
       data: {
         classId: classListing.id,
@@ -80,6 +97,32 @@ router.post("/", authGuard([UserRole.STUDENT]), async (req, res) => {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ message: "Invalid payload", issues: error.issues });
     }
+    return res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+router.get("/me", authGuard([UserRole.STUDENT]), async (req, res) => {
+  try {
+    const classId = (req.query.classId as string) || "";
+    if (!classId) return res.status(400).json({ message: "classId is required" });
+    const studentId = await getStudentIdByUser(req.user!.id);
+    if (!studentId) return res.status(400).json({ message: "Student profile not found" });
+
+    const booking = await prisma.booking.findFirst({
+      where: {
+        classId,
+        studentId,
+        status: { in: Object.values(BookingStatus) },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    return res.json({
+      bookingExists: !!booking,
+      bookingStatus: booking?.status ?? null,
+      bookingId: booking?.id ?? null,
+    });
+  } catch (error) {
     return res.status(500).json({ message: "Internal server error" });
   }
 });

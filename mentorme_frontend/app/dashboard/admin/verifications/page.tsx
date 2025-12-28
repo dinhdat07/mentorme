@@ -64,11 +64,12 @@ const translations: Record<Language, any> = {
 
 const themeStyles: Record<ThemeMode, Record<string, string>> = {
   dark: {
-    card: 'bg-slate-900/70 border border-slate-800',
-    text: 'text-white',
-    muted: 'text-white/70',
-    input: 'bg-slate-800 border border-slate-700 text-white placeholder-white/50 focus:ring-purple-500 focus:border-purple-500',
-    badge: 'bg-white/10 text-white border border-white/20',
+    card: 'bg-slate-900/80 border border-slate-800',
+    text: 'text-slate-50',
+    muted: 'text-slate-300',
+    input:
+      'bg-slate-800 border border-slate-700 text-slate-100 placeholder-slate-400 focus:ring-purple-500 focus:border-purple-500',
+    badge: 'bg-slate-800 text-slate-50 border border-slate-700',
   },
   light: {
     card: 'bg-white border border-slate-200 shadow-sm',
@@ -79,12 +80,16 @@ const themeStyles: Record<ThemeMode, Record<string, string>> = {
   },
 };
 
-const statusBadge = (status: VerificationStatus | 'ALL') => {
+const statusBadge = (status: VerificationStatus | 'ALL', theme: ThemeMode) => {
   const base = 'px-2 py-1 rounded-full text-xs font-semibold border';
-  if (status === 'VERIFIED') return `${base} bg-green-100 text-green-700 border-green-200`;
-  if (status === 'PENDING') return `${base} bg-amber-100 text-amber-700 border-amber-200`;
-  if (status === 'REJECTED') return `${base} bg-red-100 text-red-700 border-red-200`;
-  return `${base} bg-slate-100 text-slate-700 border-slate-200`;
+  const verified = `${base} bg-green-100 text-green-700 border-green-200 dark:bg-emerald-900/70 dark:text-emerald-100 dark:border-emerald-700`;
+  const pending = `${base} bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/70 dark:text-amber-100 dark:border-amber-700`;
+  const rejected = `${base} bg-red-100 text-red-700 border-red-200 dark:bg-rose-900/70 dark:text-rose-100 dark:border-rose-700`;
+  const def = `${base} bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-600`;
+  if (status === 'VERIFIED') return verified;
+  if (status === 'PENDING') return pending;
+  if (status === 'REJECTED') return rejected;
+  return def;
 };
 
 export default function AdminVerificationsPage() {
@@ -157,20 +162,24 @@ export default function AdminVerificationsPage() {
                 <button
                   key={tutor.id}
                   onClick={() => setSelectedId(tutor.id)}
-                  className={`text-left rounded-lg p-4 border transition ${
+                  className={`text-left rounded-lg p-4 border transition text-opacity-100 ${
                     selectedId === tutor.id
-                      ? 'border-purple-500 shadow-lg bg-gradient-to-r from-purple-50 to-pink-50'
-                      : 'border-slate-200 hover:border-purple-300'
+                      ? theme === 'dark'
+                        ? 'border-purple-500 shadow-lg bg-slate-900/80 text-slate-100'
+                        : 'border-purple-500 shadow-lg bg-gradient-to-r from-purple-50 to-pink-50 text-slate-900'
+                      : theme === 'dark'
+                        ? 'border-slate-700 hover:border-purple-400 bg-slate-900/60 text-slate-100'
+                        : 'border-slate-200 hover:border-purple-300 bg-white text-slate-900'
                   }`}
                 >
                   <div className="flex items-center gap-2 mb-1">
                     <ShieldCheck className="w-4 h-4 text-purple-500" />
                     <p className="font-semibold">{tutor.user?.fullName || tutor.userId}</p>
                   </div>
-                  <p className="text-xs text-slate-500 truncate">{tutor.user?.email}</p>
+                  <p className="text-xs truncate text-slate-500 dark:text-slate-300">{tutor.user?.email}</p>
                   <div className="flex items-center justify-between mt-2">
-                    <span className={statusBadge(tutor.verificationStatus)}>{tutor.verificationStatus}</span>
-                    <span className="text-xs text-slate-500">
+                    <span className={statusBadge(tutor.verificationStatus, theme)}>{tutor.verificationStatus}</span>
+                    <span className="text-xs text-slate-500 dark:text-slate-300">
                       {t.submittedAt || tutor.verificationSubmittedAt
                         ? new Date(tutor.verificationSubmittedAt).toLocaleDateString()
                         : '—'}
@@ -185,11 +194,11 @@ export default function AdminVerificationsPage() {
         </div>
 
         {selected && (
-          <div className={`rounded-xl p-6 ${styles.card} space-y-4`}>
+          <div className={`rounded-xl p-6 ${styles.card} space-y-4 text-opacity-100 ${theme === 'dark' ? 'text-slate-100' : 'text-slate-900'}`}>
             <div className="flex items-center gap-2">
               <Eye className="w-5 h-5 text-purple-500" />
               <h2 className="text-xl font-bold">{t.detail}</h2>
-              <span className={statusBadge(selected.verificationStatus)}>{selected.verificationStatus}</span>
+              <span className={statusBadge(selected.verificationStatus, theme)}>{selected.verificationStatus}</span>
             </div>
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
@@ -274,30 +283,42 @@ export default function AdminVerificationsPage() {
               )}
             </div>
 
-            <div className="space-y-2">
-              <label className={`text-sm font-semibold ${styles.text}`}>{t.note}</label>
-              <textarea
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder={t.placeholderNote}
-                className={`w-full rounded-lg px-3 py-2 ${styles.input}`}
-              />
-            </div>
+            {selected.verificationStatus === 'PENDING' && (
+              <>
+                <div className="space-y-2">
+                  <label className={`text-sm font-semibold ${styles.text}`}>{t.note}</label>
+                  <textarea
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    placeholder={t.placeholderNote}
+                    className={`w-full rounded-lg px-3 py-2 ${styles.input}`}
+                  />
+                </div>
 
-            <div className="flex gap-3">
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => act('approve', selected.id)}
+                    disabled={processing}
+                    className="flex-1 px-4 py-2 rounded-lg text-white bg-green-600 hover:bg-green-700 flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    <CheckCircle className="w-4 h-4" /> {t.approve}
+                  </button>
+                  <button
+                    onClick={() => act('reject', selected.id)}
+                    disabled={processing}
+                    className="flex-1 px-4 py-2 rounded-lg text-white bg-red-500 hover:bg-red-600 flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    <XCircle className="w-4 h-4" /> {t.reject}
+                  </button>
+                </div>
+              </>
+            )}
+            <div className="flex justify-end">
               <button
-                onClick={() => act('approve', selected.id)}
-                disabled={processing}
-                className="flex-1 px-4 py-2 rounded-lg text-white bg-green-600 hover:bg-green-700 flex items-center justify-center gap-2 disabled:opacity-50"
+                onClick={() => setSelectedId(null)}
+                className="px-4 py-2 rounded-lg border border-slate-300 text-sm hover:bg-slate-100"
               >
-                <CheckCircle className="w-4 h-4" /> {t.approve}
-              </button>
-              <button
-                onClick={() => act('reject', selected.id)}
-                disabled={processing}
-                className="flex-1 px-4 py-2 rounded-lg text-white bg-red-500 hover:bg-red-600 flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                <XCircle className="w-4 h-4" /> {t.reject}
+                {language === 'vi' ? 'Đóng' : 'Close'}
               </button>
             </div>
           </div>

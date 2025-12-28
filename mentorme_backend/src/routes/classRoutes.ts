@@ -16,6 +16,7 @@ import { z } from "zod";
 import { maskNationalId, sanitizeTutorForPublic } from "../utils/tutorSanitizer";
 import { checkScheduleConflicts, normalizeSessions, SessionInput } from "../services/scheduling";
 import { createNotification } from "../services/notifications";
+import { refundEscrow } from "../services/escrow";
 
 const router = Router();
 const VS =
@@ -106,19 +107,26 @@ const baseClassSchema = z.object({
   district: z.string().optional(),
 });
 
-const recurrenceSlotSchema = z.object({
-  dayOfWeek: z.number().int().min(0).max(6),
-  startMinute: z.number().int().min(0).max(1440),
-  endMinute: z.number().int().min(1).max(1440),
-});
+const recurrenceSlotSchema = z
+  .object({
+    dayOfWeek: z.coerce.number().int().min(0).max(6, { message: "dayOfWeek must be 0-6" }),
+    startMinute: z.coerce.number().int().min(0).max(1440, { message: "startMinute must be 0-1440" }),
+    endMinute: z.coerce.number().int().min(1).max(1440, { message: "endMinute must be 1-1440" }),
+  })
+  .refine((val) => val.endMinute > val.startMinute, { message: "endMinute must be greater than startMinute" });
+
+const startDateSchema = z
+  .string()
+  .min(8, "recurrence.startDate is required")
+  .refine((v) => !Number.isNaN(new Date(v).getTime()), { message: "recurrence.startDate must be a valid date" });
 
 const scheduleCreateSchema = z
   .object({
-    timezone: z.string().min(1).default("UTC"),
+    timezone: z.string().min(1, "timezone is required").default("UTC"),
     recurrence: z
       .object({
-        startDate: z.string().datetime(),
-        weeks: z.number().int().min(1).max(52),
+        startDate: startDateSchema,
+        weeks: z.coerce.number().int().min(1).max(52),
         slots: z.array(recurrenceSlotSchema).min(1),
       })
       .optional(),
@@ -138,18 +146,77 @@ const scheduleCreateSchema = z
     { message: "Provide recurrence or explicit sessions" }
   );
 
+type DateParts = { year: number; month: number; day: number };
+const pad = (n: number) => n.toString().padStart(2, "0");
+const parseDateParts = (value: string): DateParts | null => {
+  const datePart = value.split("T")[0];
+  const [y, m, d] = datePart.split("-").map((v) => parseInt(v, 10));
+  if (!y || !m || !d) return null;
+  return { year: y, month: m, day: d };
+};
+const addDays = (parts: DateParts, days: number): DateParts => {
+  const dt = new Date(Date.UTC(parts.year, parts.month - 1, parts.day + days));
+  return { year: dt.getUTCFullYear(), month: dt.getUTCMonth() + 1, day: dt.getUTCDate() };
+};
+const datePartsToString = (parts: DateParts) => `${parts.year.toString().padStart(4, "0")}-${pad(parts.month)}-${pad(parts.day)}`;
+const getOffsetMinutes = (date: Date, timeZone: string) => {
+  const dtf = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+  const parts = dtf.formatToParts(date).reduce<Record<string, string>>((acc, part) => {
+    if (part.type !== "literal") acc[part.type] = part.value;
+    return acc;
+  }, {});
+  const asUTC = Date.UTC(
+    Number(parts.year),
+    Number(parts.month) - 1,
+    Number(parts.day),
+    Number(parts.hour),
+    Number(parts.minute),
+    Number(parts.second)
+  );
+  return (asUTC - date.getTime()) / 60000;
+};
+
+const getDayInTimezone = (parts: DateParts, timeZone: string) => {
+  // Use midday to avoid DST edge cases for day calculation
+  const guessUtc = new Date(Date.UTC(parts.year, parts.month - 1, parts.day, 12, 0, 0));
+  const offset = getOffsetMinutes(guessUtc, timeZone);
+  const localMillis = guessUtc.getTime() - offset * 60_000;
+  return new Date(localMillis).getUTCDay();
+};
+
+const localMinutesToUtcDate = (parts: DateParts, minuteOfDay: number, timeZone: string) => {
+  const hours = Math.floor(minuteOfDay / 60);
+  const minutes = minuteOfDay % 60;
+  const utcGuess = new Date(Date.UTC(parts.year, parts.month - 1, parts.day, hours, minutes, 0));
+  const offset = getOffsetMinutes(utcGuess, timeZone);
+  return new Date(utcGuess.getTime() - offset * 60_000);
+};
+
 const toSessionInputs = (payload: z.infer<typeof scheduleCreateSchema>): SessionInput[] => {
   const sessions: SessionInput[] = [];
   if (payload.recurrence) {
-    const base = new Date(payload.recurrence.startDate);
-    const baseStartOfDay = Date.UTC(base.getUTCFullYear(), base.getUTCMonth(), base.getUTCDate());
-    const baseDay = base.getUTCDay();
+    const tz = (payload.timezone || "UTC").trim() || "UTC";
+    const startParts = parseDateParts(payload.recurrence.startDate);
+    if (!startParts) {
+      return [];
+    }
+    const baseDay = getDayInTimezone(startParts, tz);
     for (let week = 0; week < payload.recurrence.weeks; week++) {
       payload.recurrence.slots.forEach((slot) => {
         if (slot.endMinute <= slot.startMinute) return;
         const dayOffset = ((slot.dayOfWeek - baseDay + 7) % 7) + week * 7;
-        const start = new Date(baseStartOfDay + dayOffset * 24 * 60 * 60 * 1000 + slot.startMinute * 60 * 1000);
-        const end = new Date(baseStartOfDay + dayOffset * 24 * 60 * 60 * 1000 + slot.endMinute * 60 * 1000);
+        const targetDate = addDays(startParts, dayOffset);
+        const start = localMinutesToUtcDate(targetDate, slot.startMinute, tz);
+        const end = localMinutesToUtcDate(targetDate, slot.endMinute, tz);
         sessions.push({ start, end });
       });
     }
@@ -274,6 +341,10 @@ const statusSchema = z.object({
   status: z.nativeEnum(ClassStatus),
 });
 
+const cancelSchema = z.object({
+  reason: z.string().optional(),
+});
+
 router.patch("/:id/status", authGuard([UserRole.TUTOR, UserRole.ADMIN]), async (req, res) => {
   try {
     const payload = statusSchema.parse(req.body);
@@ -304,6 +375,44 @@ router.patch("/:id/status", authGuard([UserRole.TUTOR, UserRole.ADMIN]), async (
     });
 
     return res.json(updated);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ message: "Invalid payload", issues: error.issues });
+    }
+    return res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+router.patch("/:id/cancel", authGuard([UserRole.TUTOR, UserRole.ADMIN]), async (req, res) => {
+  try {
+    cancelSchema.parse(req.body || {});
+    const classId = req.params.id ?? "";
+    if (!classId) return res.status(400).json({ message: "Class id required" });
+    const classListing = await prisma.class.findUnique({ where: { id: classId } });
+    if (!classListing || classListing.isDeleted) return res.status(404).json({ message: "Class not found" });
+
+    if (req.user!.role === UserRole.TUTOR) {
+      const tutor = await prisma.tutorProfile.findUnique({ where: { userId: req.user!.id } });
+      if (!tutor || tutor.id !== classListing.tutorId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+    }
+
+    if (classListing.lifecycleStatus === CL.CANCELLED) {
+      return res.status(400).json({ message: "Class already cancelled" });
+    }
+
+    await prisma.class.update({
+      where: { id: classListing.id },
+      data: {
+        lifecycleStatus: CL.CANCELLED as any,
+        status: ClassStatus.ARCHIVED,
+      },
+    });
+
+    await refundEscrow(prisma, classListing.id);
+
+    return res.json({ message: "Class cancelled" });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ message: "Invalid payload", issues: error.issues });
@@ -459,18 +568,18 @@ router.get("/:id/schedule", authGuard(), async (req, res) => {
       return res.status(400).json({ message: "Class id required" });
     }
 
-    const schedule = await prisma.classSchedule.findUnique({
-      where: { classId },
-      include: {
-        sessions: {
-          orderBy: { scheduledStartAt: "asc" },
-        },
-        class: true,
-      },
-    });
+    const [schedule, sessions, cls] = await Promise.all([
+      prisma.classSchedule.findUnique({
+        where: { classId },
+      }),
+      prisma.session.findMany({
+        where: { classId },
+        orderBy: { scheduledStartAt: "asc" },
+      }),
+      prisma.class.findUnique({ where: { id: classId } }),
+    ]);
 
     if (!schedule) {
-      const cls = await prisma.class.findUnique({ where: { id: classId } });
       return res.json({ schedule: null, sessions: [], class: cls });
     }
 
@@ -483,21 +592,87 @@ router.get("/:id/schedule", authGuard(), async (req, res) => {
         explicitSessions: schedule.explicitSessions,
         totalSessions: schedule.totalSessions,
       },
-      class: schedule.class
+      class: cls
         ? {
-            id: schedule.class.id,
-            title: schedule.class.title,
-            lifecycleStatus: (schedule.class as any).lifecycleStatus,
-            totalSessions: (schedule.class as any).totalSessions,
-            sessionsCompleted: (schedule.class as any).sessionsCompleted,
+            id: cls.id,
+            title: cls.title,
+            lifecycleStatus: (cls as any).lifecycleStatus,
+            totalSessions: (cls as any).totalSessions,
+            sessionsCompleted: (cls as any).sessionsCompleted,
           }
         : null,
-      sessions: schedule.sessions,
+      sessions,
     });
   } catch (error) {
     return res.status(500).json({ message: "Internal server error" });
   }
 });
+
+router.delete(
+  "/:id/schedule",
+  authGuard([UserRole.TUTOR, UserRole.ADMIN]),
+  async (req, res) => {
+    try {
+      const classId = req.params.id ?? "";
+      if (!classId) {
+        return res.status(400).json({ message: "Class id required" });
+      }
+
+      const classListing = await prisma.class.findUnique({
+        where: { id: classId },
+      });
+      if (!classListing || classListing.isDeleted) {
+        return res.status(404).json({ message: "Class not found" });
+      }
+
+      if (req.user!.role === UserRole.TUTOR) {
+        const tutor = await prisma.tutorProfile.findUnique({ where: { userId: req.user!.id } });
+        if (!tutor || tutor.id !== classListing.tutorId) {
+          return res.status(403).json({ message: "Forbidden" });
+        }
+      }
+
+      const result = await prisma.$transaction(async (tx) => {
+        // keep completed sessions for history; clear others
+        await tx.session.deleteMany({
+          where: {
+            classId,
+            status: { not: SS.COMPLETED as any },
+          },
+        });
+
+        const completedCount = await tx.session.count({
+          where: { classId, status: SS.COMPLETED as any },
+        });
+
+        await tx.classSchedule.deleteMany({ where: { classId } });
+        await tx.class.update({
+          where: { id: classId },
+          data: {
+            totalSessions: completedCount,
+            sessionsCompleted: completedCount,
+            lifecycleStatus:
+              completedCount > 0 && classListing.totalSessions > 0 && completedCount >= (classListing.totalSessions ?? 0)
+                ? (CL.COMPLETED as any)
+                : completedCount > 0
+                  ? (CL.ACTIVE as any)
+                  : (CL.PENDING as any),
+          },
+        });
+
+        const remainingSessions = await tx.session.findMany({
+          where: { classId },
+          orderBy: { scheduledStartAt: "asc" },
+        });
+        return { completedCount, remainingSessions };
+      });
+
+      return res.json({ message: "Schedule cleared", remainingSessions: result.remainingSessions });
+    } catch (error) {
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  }
+);
 
 router.post(
   "/:id/schedule",
@@ -510,6 +685,7 @@ router.post(
       }
 
       const payload = scheduleCreateSchema.parse(req.body);
+      const timezone = (payload.timezone || "UTC").trim() || "UTC";
 
       const classListing = await prisma.class.findUnique({
         where: { id: classId },
@@ -533,7 +709,12 @@ router.post(
         }
       }
 
-      const sessions = toSessionInputs(payload);
+      let sessions: SessionInput[] = [];
+      try {
+        sessions = toSessionInputs({ ...payload, timezone });
+      } catch (err: any) {
+        return res.status(400).json({ message: err?.message || "Invalid schedule payload" });
+      }
       if (sessions.length === 0) {
         return res.status(400).json({ message: "No valid sessions generated" });
       }
@@ -563,7 +744,7 @@ router.post(
       }
 
       const scheduleData = {
-        timezone: payload.timezone,
+        timezone,
         recurrenceRule: payload.recurrence ?? null,
         explicitSessions: payload.explicitSessions ?? null,
         totalSessions: sessions.length,
@@ -632,7 +813,13 @@ router.post(
       });
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid schedule payload", issues: error.issues });
+        return res.status(400).json({
+          message: "Invalid schedule payload",
+          issues: error.issues?.map((i) => ({
+            path: i.path.join("."),
+            message: i.message,
+          })),
+        });
       }
       return res.status(500).json({ message: "Internal server error" });
     }

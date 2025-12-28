@@ -4,6 +4,7 @@ import { authGuard } from "../middleware/auth";
 import { BookingStatus, ClassLifecycleStatus, SessionStatus, UserRole, VerificationStatus } from "@prisma/client";
 import { z } from "zod";
 import { createNotification } from "../services/notifications";
+import { releaseForCompletedSession } from "../services/escrow";
 
 const router = Router();
 
@@ -329,6 +330,14 @@ router.patch("/:id/complete", authGuard([UserRole.TUTOR, UserRole.STUDENT]), asy
           metadata: { sessionId: session.id, classId: session.classId },
           dedupKey: `session:${session.id}:dispute:${uid}`,
         });
+      }
+    }
+
+    if (result.status === SS.COMPLETED) {
+      try {
+        await releaseForCompletedSession(prisma, session.id);
+      } catch (err) {
+        console.error("Failed to release escrow", err);
       }
     }
 

@@ -16,6 +16,9 @@ type PrismaMock = {
   session: ModelMock;
   notification: ModelMock;
   reminderLog: ModelMock;
+  paymentIntent: ModelMock;
+  escrowAccount: ModelMock;
+  ledgerEntry: ModelMock;
   $transaction: jest.Mock;
   prisma?: never;
 };
@@ -48,6 +51,9 @@ export const mockPrisma: PrismaMock = {
   session: createModelMock(),
   notification: createModelMock(),
   reminderLog: createModelMock(),
+  paymentIntent: createModelMock(),
+  escrowAccount: createModelMock(),
+  ledgerEntry: createModelMock(),
   $transaction: jest.fn(),
 };
 
@@ -68,5 +74,8 @@ export const resetMockPrisma = () => {
   resetModel(mockPrisma.session);
   resetModel(mockPrisma.notification);
   resetModel(mockPrisma.reminderLog);
+  resetModel(mockPrisma.paymentIntent);
+  resetModel(mockPrisma.escrowAccount);
+  resetModel(mockPrisma.ledgerEntry);
   mockPrisma.$transaction.mockReset();
 };

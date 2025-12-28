@@ -10,6 +10,8 @@ export type BookingStatus = 'PENDING' | 'CONFIRMED' | 'TRIAL' | 'CANCELLED' | 'C
 export type LocationType = 'ONLINE' | 'AT_STUDENT' | 'AT_TUTOR';
 export type VerificationStatus = 'UNVERIFIED' | 'PENDING' | 'VERIFIED' | 'REJECTED';
 export type SessionStatus = 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'MISSED';
+export type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED';
+export type LedgerType = 'DEPOSIT' | 'RELEASE_TO_TUTOR' | 'PLATFORM_FEE' | 'REFUND';
 
 export interface User {
   id: string;
@@ -170,6 +172,45 @@ export interface Review {
   rating: number;
   comment?: string;
   createdAt: string;
+}
+
+export interface PaymentIntent {
+  id: string;
+  classId: string;
+  payerId: string;
+  amount: number;
+  currency: string;
+  status: PaymentStatus;
+  provider: string;
+  providerRef?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EscrowAccount {
+  id?: string;
+  classId: string;
+  totalDeposited: number;
+  availableBalance: number;
+  releasedAmount: number;
+  refundedAmount: number;
+}
+
+export interface LedgerEntry {
+  id: string;
+  classId: string;
+  sessionId?: string | null;
+  paymentIntentId?: string | null;
+  type: LedgerType;
+  amount: number;
+  createdAt: string;
+}
+
+export interface PaymentSummary {
+  escrow: EscrowAccount;
+  ledger: LedgerEntry[];
+  unpaidCompleted: number;
+  nextReleaseAmount?: number | null;
 }
 
 export interface AuthResponse {

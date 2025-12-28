@@ -14,6 +14,62 @@ describe("Booking and admin routes", () => {
     jest.clearAllMocks();
   });
 
+  test("student cannot book the same class twice", async () => {
+    mockPrisma.studentProfile.findUnique.mockResolvedValue({ id: "student-1", userId: "user-student" });
+    const classId = "22222222-2222-4222-8222-222222222222";
+    mockPrisma.class.findUnique.mockResolvedValue({
+      id: classId,
+      isDeleted: false,
+      status: "PUBLISHED",
+      tutorId: "tutor-1",
+    } as any);
+    mockPrisma.booking.findFirst.mockResolvedValueOnce(null as any);
+    mockPrisma.booking.create.mockResolvedValue({ id: "bk-1" } as any);
+
+    const first = await request(app)
+      .post("/api/bookings")
+      .set("Authorization", `Bearer ${studentToken}`)
+      .send({
+        classId,
+        isTrial: false,
+        requestedHoursPerWeek: 2,
+        startDateExpected: new Date().toISOString(),
+      });
+    expect(first.status).toBe(201);
+
+    mockPrisma.booking.findFirst.mockResolvedValueOnce({
+      id: "bk-1",
+      status: BookingStatus.CONFIRMED,
+    } as any);
+
+    const second = await request(app)
+      .post("/api/bookings")
+      .set("Authorization", `Bearer ${studentToken}`)
+      .send({
+        classId,
+        isTrial: false,
+        requestedHoursPerWeek: 2,
+        startDateExpected: new Date().toISOString(),
+      });
+    expect(second.status).toBe(409);
+  });
+
+  test("GET my booking returns status", async () => {
+    mockPrisma.studentProfile.findUnique.mockResolvedValue({ id: "student-1", userId: "user-student" });
+    mockPrisma.booking.findFirst.mockResolvedValue({
+      id: "bk-2",
+      status: BookingStatus.PENDING,
+    } as any);
+
+    const res = await request(app)
+      .get("/api/bookings/me?classId=class-1")
+      .set("Authorization", `Bearer ${studentToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.bookingExists).toBe(true);
+    expect(res.body.bookingStatus).toBe(BookingStatus.PENDING);
+  });
+
   test("tutor confirms booking", async () => {
     mockPrisma.tutorProfile.findUnique
       .mockResolvedValueOnce({ id: "tutor-1", userId: "user-tutor" } as any) // getTutorIdByUser

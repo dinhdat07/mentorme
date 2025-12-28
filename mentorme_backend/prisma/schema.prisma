@@ -42,6 +42,20 @@ enum ReminderType {
   REMINDER_1H
 }
 
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum LedgerType {
+  DEPOSIT
+  RELEASE_TO_TUTOR
+  PLATFORM_FEE
+  REFUND
+}
+
 enum LocationType {
   ONLINE
   AT_STUDENT
@@ -83,6 +97,9 @@ model User {
 
   studentProfile StudentProfile?
   tutorProfile   TutorProfile?
+  notifications  Notification[]
+  reminderLogs   ReminderLog[]
+  paymentIntents PaymentIntent[]
 }
 
 model StudentProfile {
@@ -214,6 +231,8 @@ model Session {
   updatedAt         DateTime      @updatedAt
 
   class Class @relation(fields: [classId], references: [id], onDelete: Cascade)
+  reminders ReminderLog[]
+  ledgerEntries LedgerEntry[]
 
   @@index([classId, scheduledStartAt])
   @@index([scheduledStartAt, scheduledEndAt])
@@ -250,9 +269,59 @@ model ReminderLog {
   @@unique([userId, sessionId, reminderType])
 }
 
+model PaymentIntent {
+  id         String        @id @default(uuid())
+  classId    String
+  payerId    String
+  amount     Float
+  currency   String        @default("VND")
+  status     PaymentStatus @default(PENDING)
+  provider   String        @default("MOCK")
+  providerRef String?
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  class Class @relation(fields: [classId], references: [id], onDelete: Cascade)
+  payer User  @relation(fields: [payerId], references: [id], onDelete: Cascade)
+  ledgerEntries LedgerEntry[]
+
+  @@index([classId])
+  @@index([payerId])
+}
+
+model EscrowAccount {
+  id                String   @id @default(uuid())
+  classId           String   @unique
+  totalDeposited    Float    @default(0)
+  availableBalance  Float    @default(0)
+  releasedAmount    Float    @default(0)
+  refundedAmount    Float    @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  class Class @relation(fields: [classId], references: [id], onDelete: Cascade)
+}
+
+model LedgerEntry {
+  id               String     @id @default(uuid())
+  classId          String
+  sessionId        String?
+  paymentIntentId  String?
+  type             LedgerType
+  amount           Float
+  createdAt        DateTime   @default(now())
+
+  class         Class         @relation(fields: [classId], references: [id], onDelete: Cascade)
+  session       Session?      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  paymentIntent PaymentIntent? @relation(fields: [paymentIntentId], references: [id], onDelete: Cascade)
+
+  @@index([classId, createdAt])
+  @@unique([type, sessionId], map: "ledger_session_unique") // prevents double release per session
+}
+
 model Subject {
   id          String   @id @default(uuid())
-  name        String
+  name        String   @unique
   level       String
   description String?
   createdAt   DateTime @default(now())
@@ -287,6 +356,9 @@ model Class {
   bookings Booking[]
   schedule ClassSchedule?
   sessions Session[]
+  paymentIntents PaymentIntent[]
+  escrowAccount  EscrowAccount?
+  ledgerEntries  LedgerEntry[]
 
   @@index([subjectId, status])
   @@index([tutorId])

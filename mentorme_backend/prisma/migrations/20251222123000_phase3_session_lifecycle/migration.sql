@@ -4,13 +4,27 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- Extend SessionStatus enum if needed
 DO $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel = 'IN_PROGRESS' AND enumtypid = 'SessionStatus'::regtype) THEN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_enum e
+    JOIN pg_type t ON t.oid = e.enumtypid
+    WHERE t.typname = 'SessionStatus'
+      AND e.enumlabel = 'IN_PROGRESS'
+  ) THEN
     ALTER TYPE "SessionStatus" ADD VALUE 'IN_PROGRESS';
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel = 'COMPLETED' AND enumtypid = 'SessionStatus'::regtype) THEN
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_enum e
+    JOIN pg_type t ON t.oid = e.enumtypid
+    WHERE t.typname = 'SessionStatus'
+      AND e.enumlabel = 'COMPLETED'
+  ) THEN
     ALTER TYPE "SessionStatus" ADD VALUE 'COMPLETED';
   END IF;
-END$$;
+END $$;
+
 
 -- Class lifecycle status enum
 DO $$

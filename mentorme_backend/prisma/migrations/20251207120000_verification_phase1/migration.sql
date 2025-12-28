@@ -15,7 +15,11 @@ ALTER TABLE "TutorProfile"
 
 -- Keep backward compatibility with existing verified flag
 UPDATE "TutorProfile"
-SET "verificationStatus" = CASE WHEN "verified" = true THEN 'VERIFIED' ELSE 'UNVERIFIED' END;
+SET "verificationStatus" =
+  CASE
+    WHEN "verified" = true THEN 'VERIFIED'::"VerificationStatus"
+    ELSE 'UNVERIFIED'::"VerificationStatus"
+  END;
 
 -- Unique constraint for national ID (allows NULLs)
 CREATE UNIQUE INDEX "TutorProfile_nationalIdNumber_key" ON "TutorProfile"("nationalIdNumber");
