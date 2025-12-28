@@ -1,6 +1,7 @@
 import { Router } from "express";
-import { prisma } from "../lib/prisma";
 import { authGuard } from "../middleware/auth";
+import { PrismaClient } from "@prisma/client";
+export const prisma = new PrismaClient();
 import {
   BookingStatus,
   CancelledBy,
@@ -10,14 +11,33 @@ import {
 import { z } from "zod";
 import { recalculateTutorStats } from "../services/tutorStats";
 
+function getDateByDayOfWeek(baseDate: Date, targetDay: number) {
+  const date = new Date(baseDate);
+  const currentDay = date.getDay(); // 0 (CN) → 6 (T7)
+  const diff = (targetDay + 7 - currentDay) % 7;
+  date.setDate(date.getDate() + diff);
+  return date;
+}
+
 const router = Router();
 
 const createSchema = z.object({
-  classId: z.string().uuid(),
-  isTrial: z.boolean().optional().default(false),
-  requestedHoursPerWeek: z.number().int().min(1),
+  classId: z.string(),
+  isTrial: z.boolean(),
+  requestedHoursPerWeek: z.number(),
   startDateExpected: z.string(),
+
+  preferredSlot: z.object({
+    dayOfWeek: z.number().min(0).max(6),
+    startTime: z.string(), // "18:00"
+    endTime: z.string(), // "20:00"
+  }),
+
   noteFromStudent: z.string().optional(),
+});
+
+const rejectSchema = z.object({
+  reason: z.string().optional(),
 });
 
 const getStudentIdByUser = async (userId: string) => {
@@ -32,42 +52,93 @@ const getTutorIdByUser = async (userId: string) => {
   return tutor?.id;
 };
 
-
 router.post("/", authGuard([UserRole.STUDENT]), async (req, res) => {
   try {
     const payload = createSchema.parse(req.body);
+
     const studentId = await getStudentIdByUser(req.user!.id);
     if (!studentId) {
-      return res.status(400).json({ message: "Student profile not found" });
+      return res.status(400).json({ message: "Student not found" });
     }
 
-    const classListing = await prisma.class.findUnique({
+    // Kiểm tra lớp có tồn tại không
+    const classData = await prisma.class.findUnique({
       where: { id: payload.classId },
+      select: { tutorId: true, title: true }, // Lấy title để hiển thị thông báo cho rõ
     });
 
-    if (!classListing || classListing.isDeleted || classListing.status !== ClassStatus.PUBLISHED) {
-      return res.status(400).json({ message: "Class not available" });
+    if (!classData) {
+      return res.status(404).json({ message: "Class not found" });
     }
 
-    const booking = await prisma.booking.create({
-      data: {
-        classId: classListing.id,
-        studentId,
-        tutorId: classListing.tutorId,
-        status: BookingStatus.PENDING,
-        isTrial: payload.isTrial,
-        requestedHoursPerWeek: payload.requestedHoursPerWeek,
-        startDateExpected: new Date(payload.startDateExpected),
-        noteFromStudent: payload.noteFromStudent ?? null,
+    // === LOGIC CHECK TRÙNG LỚP ===
+    // Tìm xem đã có booking nào của học sinh này, cho CHÍNH XÁC lớp này (classId)
+    // mà trạng thái chưa kết thúc hay không.
+    const existingBooking = await prisma.booking.findFirst({
+      where: {
+        studentId: studentId,
+        classId: payload.classId, // So khớp chính xác ID lớp học
+        status: {
+          // Các trạng thái được coi là "Đang học" hoặc "Đang chờ"
+          in: [
+            BookingStatus.PENDING,
+            BookingStatus.CONFIRMED,
+            BookingStatus.TRIAL,
+          ],
+        },
       },
     });
 
-    return res.status(201).json(booking);
+    // Nếu tìm thấy => Chặn
+    if (existingBooking) {
+      // Tùy chỉnh thông báo dựa trên trạng thái cũ
+      let msg = "Bạn đã đăng ký lớp này rồi.";
+      if (existingBooking.status === BookingStatus.PENDING) {
+        msg =
+          "Yêu cầu đăng ký của bạn cho lớp này đang chờ gia sư duyệt. Vui lòng không gửi lại.";
+      } else {
+        msg =
+          "Bạn đang theo học lớp này rồi. Không thể đăng ký lại trừ khi lớp học kết thúc hoặc bị hủy.";
+      }
+
+      return res.status(409).json({
+        message: msg,
+        bookingId: existingBooking.id, // Trả về ID cũ nếu FE muốn redirect người dùng tới đó
+      });
+    }
+
+    // === HẾT PHẦN CHECK, TẠO BOOKING MỚI ===
+    const booking = await prisma.booking.create({
+      data: {
+        class: {
+          connect: { id: payload.classId },
+        },
+        student: {
+          connect: { id: studentId },
+        },
+        tutor: {
+          connect: { id: classData.tutorId },
+        },
+        isTrial: payload.isTrial,
+        requestedHoursPerWeek: payload.requestedHoursPerWeek,
+        startDateExpected: new Date(payload.startDateExpected),
+
+        noteFromStudent: JSON.stringify({
+          preferredSlot: payload.preferredSlot,
+          note: payload.noteFromStudent,
+        }),
+      },
+    });
+
+    res.json(booking);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ message: "Invalid payload", issues: error.issues });
+      return res
+        .status(400)
+        .json({ message: "Dữ liệu không hợp lệ", issues: error.issues });
     }
-    return res.status(500).json({ message: "Internal server error" });
+    console.error(error);
+    return res.status(500).json({ message: "Lỗi server" });
   }
 });
 
@@ -161,78 +232,183 @@ router.get("/:id", authGuard(), async (req, res) => {
   }
 });
 
-
 router.patch("/:id/confirm", authGuard([UserRole.TUTOR]), async (req, res) => {
+  const bookingId = req.params.id;
+
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId },
+  });
+
+  // 1. check tồn tại
+  if (!booking) {
+    return res.status(404).json({ message: "Booking not found" });
+  }
+  // 1.1 không cho confirm nếu đã hoàn thành hoặc đã huỷ
+  if (
+    booking.status === BookingStatus.COMPLETED ||
+    booking.status === BookingStatus.CANCELLED
+  ) {
+    return res.status(400).json({
+      message: "Booking already finalized",
+    });
+  }
+
+  // 2. chỉ cho confirm booking pending
+  if (booking.status !== BookingStatus.PENDING) {
+    return res.status(400).json({
+      message: "Only pending bookings can be confirmed",
+    });
+  }
+
+  // 3. check đúng gia sư
+  const currentTutorId = await getTutorIdByUser(req.user!.id);
+  if (!currentTutorId || booking.tutorId !== currentTutorId) {
+    return res.status(403).json({ message: "Forbidden" });
+  }
+
+  const tutorId = booking.tutorId!;
+  const studentId = booking.studentId;
+
+  // 4. parse slot từ note
+  let preferredSlot: {
+    dayOfWeek: number;
+    startTime: string;
+    endTime: string;
+  } | null = null;
+
   try {
-    const bookingId = req.params.id ?? "";
-    if (!bookingId) {
-      return res.status(400).json({ message: "Booking id is required" });
-    }
-    const tutorId = await getTutorIdByUser(req.user!.id);
-    if (!tutorId) {
-      return res.status(400).json({ message: "Tutor profile not found" });
-    }
+    preferredSlot = JSON.parse(booking.noteFromStudent || "{}").preferredSlot;
+  } catch {
+    preferredSlot = null;
+  }
 
-    const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
-    if (!booking || booking.tutorId !== tutorId) {
-      return res.status(404).json({ message: "Booking not found" });
-    }
+  // booking cũ → duyệt luôn
+  if (!preferredSlot) {
+    await prisma.booking.update({
+      where: { id: booking.id },
+      data: { status: BookingStatus.CONFIRMED },
+    });
+    return res.json({ message: "Confirmed (legacy booking)" });
+  }
 
-    if (booking.status !== BookingStatus.PENDING) {
-      return res.status(400).json({ message: "Only pending bookings can be confirmed" });
-    }
+  // 5. tính thời gian
+  const [h1, m1] = preferredSlot.startTime.split(":").map(Number);
+  const [h2, m2] = preferredSlot.endTime.split(":").map(Number);
 
-    const updated = await prisma.booking.update({
+  const lessonDate = getDateByDayOfWeek(
+    new Date(booking.startDateExpected),
+    preferredSlot.dayOfWeek
+  );
+
+  const start = new Date(lessonDate);
+  start.setHours(h1, m1, 0, 0);
+
+  const end = new Date(lessonDate);
+  end.setHours(h2, m2, 0, 0);
+
+  // 6. check trùng lịch tutor
+  const tutorSchedules = await prisma.schedule.findMany({
+    where: { tutorId, status: "ACTIVE" },
+  });
+
+  for (const s of tutorSchedules) {
+    if (start < s.endTime && end > s.startTime) {
+      return res.status(409).json({
+        code: "TUTOR_CONFLICT",
+        message: "Trùng lịch dạy. Vui lòng huỷ hoặc chọn slot khác.",
+      });
+    }
+  }
+
+  // 7. check trùng lịch student
+  const studentSchedules = await prisma.schedule.findMany({
+    where: { studentId, status: "ACTIVE" },
+  });
+
+  for (const s of studentSchedules) {
+    if (start < s.endTime && end > s.startTime) {
+      return res.status(400).json({
+        message: "Student already has a class at this time",
+      });
+    }
+  }
+
+  // 8. OK → confirm + tạo schedule
+  await prisma.$transaction([
+    prisma.booking.update({
       where: { id: booking.id },
       data: {
         status: booking.isTrial ? BookingStatus.TRIAL : BookingStatus.CONFIRMED,
       },
-    });
+    }),
+    prisma.schedule.create({
+      data: {
+        tutorId,
+        studentId,
+        bookingId: booking.id,
+        startTime: start,
+        endTime: end,
+      },
+    }),
+  ]);
 
-    return res.json(updated);
-  } catch (error) {
-    return res.status(500).json({ message: "Internal server error" });
-  }
-});
-
-const rejectSchema = z.object({
-  reason: z.string().optional(),
+  res.json({ message: "Booking confirmed & schedule created" });
 });
 
 router.patch("/:id/reject", authGuard([UserRole.TUTOR]), async (req, res) => {
   try {
     const payload = rejectSchema.parse(req.body);
     const bookingId = req.params.id ?? "";
-    if (!bookingId) {
-      return res.status(400).json({ message: "Booking id is required" });
-    }
-    const tutorId = await getTutorIdByUser(req.user!.id);
-    if (!tutorId) {
+
+    // Check quyền gia sư
+    const tutor = await prisma.tutorProfile.findUnique({
+      where: { userId: req.user!.id },
+    });
+    if (!tutor)
       return res.status(400).json({ message: "Tutor profile not found" });
-    }
-    const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
-    if (!booking || booking.tutorId !== tutorId) {
+
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+    });
+
+    if (!booking || booking.tutorId !== tutor.id) {
       return res.status(404).json({ message: "Booking not found" });
     }
 
     if (booking.status !== BookingStatus.PENDING) {
-      return res.status(400).json({ message: "Only pending bookings can be rejected" });
+      return res
+        .status(400)
+        .json({ message: "Only pending bookings can be rejected" });
     }
 
-    const updated = await prisma.booking.update({
-      where: { id: booking.id },
-      data: {
-        status: BookingStatus.CANCELLED,
-        cancelReason: payload.reason ?? "Rejected by tutor",
-        cancelledBy: CancelledBy.TUTOR,
-      },
+    // Dùng transaction để đảm bảo xóa sạch schedule nếu có
+    const updated = await prisma.$transaction(async (tx) => {
+      // 1. Cập nhật booking
+      const b = await tx.booking.update({
+        where: { id: bookingId },
+        data: {
+          status: BookingStatus.CANCELLED,
+          cancelReason: payload.reason,
+          cancelledBy: CancelledBy.TUTOR,
+        },
+      });
+
+      // 2. Xóa Schedule (quan trọng: xóa để giải phóng lịch)
+      await tx.schedule.deleteMany({
+        where: { bookingId: bookingId },
+      });
+
+      return b;
     });
 
     return res.json(updated);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ message: "Invalid payload", issues: error.issues });
+      return res
+        .status(400)
+        .json({ message: "Invalid payload", issues: error.issues });
     }
+    console.error(error);
     return res.status(500).json({ message: "Internal server error" });
   }
 });
@@ -241,104 +417,133 @@ const cancelSchema = z.object({
   reason: z.string().min(1),
 });
 
-router.patch("/:id/cancel", authGuard([UserRole.STUDENT, UserRole.TUTOR, UserRole.ADMIN]), async (req, res) => {
-  try {
-    const payload = cancelSchema.parse(req.body);
-    const bookingId = req.params.id ?? "";
-    if (!bookingId) {
-      return res.status(400).json({ message: "Booking id is required" });
-    }
-    const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
-
-    if (!booking) {
-      return res.status(404).json({ message: "Booking not found" });
-    }
-
-    const isFinalized =
-      booking.status === BookingStatus.CANCELLED || booking.status === BookingStatus.COMPLETED;
-    if (isFinalized) {
-      return res.status(400).json({ message: "Booking already finalized" });
-    }
-    // Nếu đã confirm và không phải lớp thử, không cho hủy
-    const isConfirmedNonTrial = booking.status === BookingStatus.CONFIRMED && !booking.isTrial;
-    if (isConfirmedNonTrial) {
-      return res
-        .status(400)
-        .json({ message: "Confirmed bookings cannot be cancelled unless it is a trial class" });
-    }
-
-    let cancelledBy: CancelledBy;
-    if (req.user!.role === UserRole.STUDENT) {
-      const studentId = await getStudentIdByUser(req.user!.id);
-      if (!studentId || booking.studentId !== studentId) {
-        return res.status(403).json({ message: "Forbidden" });
+router.patch(
+  "/:id/cancel",
+  authGuard([UserRole.STUDENT, UserRole.TUTOR, UserRole.ADMIN]),
+  async (req, res) => {
+    try {
+      const payload = cancelSchema.parse(req.body);
+      const bookingId = req.params.id ?? "";
+      if (!bookingId) {
+        return res.status(400).json({ message: "Booking id is required" });
       }
-      cancelledBy = CancelledBy.STUDENT;
-    } else if (req.user!.role === UserRole.TUTOR) {
-      const tutorId = await getTutorIdByUser(req.user!.id);
-      if (!tutorId || tutorId !== booking.tutorId) {
-        return res.status(403).json({ message: "Forbidden" });
+      const booking = await prisma.booking.findUnique({
+        where: { id: bookingId },
+      });
+
+      if (!booking) {
+        return res.status(404).json({ message: "Booking not found" });
       }
-      cancelledBy = CancelledBy.TUTOR;
-    } else {
-      cancelledBy = CancelledBy.SYSTEM;
-    }
 
-    const updated = await prisma.booking.update({
-      where: { id: booking.id },
-      data: {
-        status: BookingStatus.CANCELLED,
-        cancelReason: payload.reason,
-        cancelledBy,
-      },
-    });
+      const isFinalized =
+        booking.status === BookingStatus.CANCELLED ||
+        booking.status === BookingStatus.COMPLETED;
+      if (isFinalized) {
+        return res.status(400).json({ message: "Booking already finalized" });
+      }
+      // Nếu đã confirm và không phải lớp thử, không cho hủy
+      const isConfirmedNonTrial =
+        booking.status === BookingStatus.CONFIRMED && !booking.isTrial;
+      if (isConfirmedNonTrial) {
+        return res.status(400).json({
+          message:
+            "Confirmed bookings cannot be cancelled unless it is a trial class",
+        });
+      }
 
-    return res.json(updated);
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({ message: "Invalid payload", issues: error.issues });
+      let cancelledBy: CancelledBy;
+      if (req.user!.role === UserRole.STUDENT) {
+        const studentId = await getStudentIdByUser(req.user!.id);
+        if (!studentId || booking.studentId !== studentId) {
+          return res.status(403).json({ message: "Forbidden" });
+        }
+        cancelledBy = CancelledBy.STUDENT;
+      } else if (req.user!.role === UserRole.TUTOR) {
+        const tutorId = await getTutorIdByUser(req.user!.id);
+        if (!tutorId || tutorId !== booking.tutorId) {
+          return res.status(403).json({ message: "Forbidden" });
+        }
+        cancelledBy = CancelledBy.TUTOR;
+      } else {
+        cancelledBy = CancelledBy.SYSTEM;
+      }
+
+      const updated = await prisma.booking.update({
+        where: { id: booking.id },
+        data: {
+          status: BookingStatus.CANCELLED,
+          cancelReason: payload.reason,
+          cancelledBy,
+        },
+      });
+
+      return res.json(updated);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res
+          .status(400)
+          .json({ message: "Invalid payload", issues: error.issues });
+      }
+      return res.status(500).json({ message: "Internal server error" });
     }
-    return res.status(500).json({ message: "Internal server error" });
   }
-});
+);
 
-router.patch("/:id/complete", authGuard([UserRole.TUTOR, UserRole.ADMIN]), async (req, res) => {
-  try {
-    const bookingId = req.params.id ?? "";
-    if (!bookingId) {
-      return res.status(400).json({ message: "Booking id is required" });
-    }
-    const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
+router.patch(
+  "/:id/complete",
+  authGuard([UserRole.TUTOR, UserRole.ADMIN]),
+  async (req, res) => {
+    try {
+      const bookingId = req.params.id ?? "";
 
-    if (!booking) {
-      return res.status(404).json({ message: "Booking not found" });
-    }
+      const booking = await prisma.booking.findUnique({
+        where: { id: bookingId },
+      });
 
-    if (
-      booking.status === BookingStatus.CANCELLED ||
-      booking.status === BookingStatus.COMPLETED
-    ) {
-      return res.status(400).json({ message: "Booking already finalized" });
-    }
+      if (!booking)
+        return res.status(404).json({ message: "Booking not found" });
 
-    if (req.user!.role === UserRole.TUTOR) {
-      const tutorId = await getTutorIdByUser(req.user!.id);
-      if (!tutorId || tutorId !== booking.tutorId) {
-        return res.status(403).json({ message: "Forbidden" });
+      if (
+        booking.status === BookingStatus.CANCELLED ||
+        booking.status === BookingStatus.COMPLETED
+      ) {
+        return res.status(400).json({ message: "Booking already finalized" });
       }
+
+      // Check quyền gia sư
+      if (req.user!.role === UserRole.TUTOR) {
+        const tutor = await prisma.tutorProfile.findUnique({
+          where: { userId: req.user!.id },
+        });
+        if (!tutor || tutor.id !== booking.tutorId) {
+          return res.status(403).json({ message: "Forbidden" });
+        }
+      }
+
+      // Transaction: Update Booking + Xóa Schedule
+      const updated = await prisma.$transaction(async (tx) => {
+        const b = await tx.booking.update({
+          where: { id: booking.id },
+          data: { status: BookingStatus.COMPLETED },
+        });
+
+        // QUAN TRỌNG: Xóa Schedule để tránh hệ thống hiểu nhầm là vẫn đang bận
+        await tx.schedule.deleteMany({
+          where: { bookingId: booking.id },
+        });
+
+        return b;
+      });
+
+      // Tính lại chỉ số Tutor
+      await recalculateTutorStats(booking.tutorId);
+
+      return res.json(updated);
+    } catch (error) {
+      console.error(error);
+      return res.status(500).json({ message: "Internal server error" });
     }
-
-    const updated = await prisma.booking.update({
-      where: { id: booking.id },
-      data: { status: BookingStatus.COMPLETED },
-    });
-
-    await recalculateTutorStats(booking.tutorId);
-
-    return res.json(updated);
-  } catch (error) {
-    return res.status(500).json({ message: "Internal server error" });
   }
-});
+);
 
 export default router;

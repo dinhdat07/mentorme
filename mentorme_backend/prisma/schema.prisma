@@ -206,3 +206,22 @@ model Review {
 
   @@index([tutorId])
 }
+model Schedule {
+  id        String   @id @default(uuid())
+
+  tutorId   String
+  studentId String
+  bookingId String  // không unique nếu có data cũ
+
+  startTime DateTime
+  endTime   DateTime
+
+  status    ScheduleStatus @default(ACTIVE)
+
+  createdAt DateTime @default(now())
+}
+
+enum ScheduleStatus {
+  ACTIVE
+  CANCELLED
+}
